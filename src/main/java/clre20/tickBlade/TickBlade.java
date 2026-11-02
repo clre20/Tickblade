@@ -148,7 +148,7 @@ public final class TickBlade extends JavaPlugin implements Listener {
         return error;
     }
 
-    /** /tb reload */
+    /** /tickb reload */
     public String reload() {
         String err = loadFiles();
         startModules();

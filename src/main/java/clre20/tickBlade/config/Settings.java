@@ -62,6 +62,7 @@ public final class Settings {
     public final long spikeLogMaxBytes;
     public final int hotspotCacheSeconds;
     public final int hotspotChunksPerTick;
+    public final int hotspotMinOpLevel;
 
     // C
     public final boolean shedEnabled;
@@ -124,6 +125,7 @@ public final class Settings {
         spikeLogMaxBytes = clamp(c.getLong("spike-detector.spike-log.max-size-kb", 1024), 16, 102_400) * 1024L;
         hotspotCacheSeconds = clamp(c.getInt("hotspots.cache-seconds", 30), 0, 3600);
         hotspotChunksPerTick = clamp(c.getInt("hotspots.chunks-per-tick", 150), 10, 5000);
+        hotspotMinOpLevel = clamp(c.getInt("hotspots.min-op-level", 2), 0, 4);
 
         shedEnabled = c.getBoolean("load-shedding.enabled", true);
         shedAverageSeconds = clamp(c.getInt("load-shedding.average-seconds", 10), 1, 60);

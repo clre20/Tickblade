@@ -6,6 +6,7 @@ messages-version: 1
 common:
   no-permission: "&c你沒有權限使用這個指令。"
   player-only: "&c這個指令只能由玩家執行。"
+  op-level-required: "&c需要 OP 等級 {level} 以上才能使用。"
   unknown-subcommand: "&c未知的子指令，輸入 &e/{label} help &c查看說明。"
   reload-done: "&a已重新載入 config.yml 與 messages.yml。"
   reload-failed: "&c重新載入失敗：{error}（詳細內容請看後台）"
@@ -113,7 +114,7 @@ hotspots:
 
 console:
   enabled: "TickBlade v{version} 已啟用"
-  config-error: "{file} 格式錯誤，暫時使用內建預設值，請修正後執行 /tb reload：{error}"
+  config-error: "{file} 格式錯誤，暫時使用內建預設值，請修正後執行 /tickb reload：{error}"
   config-updated: "{file} 已補上缺少的項目（舊檔備份為 {file}.bak）"
   update-newer: "有新版本 v{latest}（目前 v{version}）：{url}"
   update-latest: "已是最新版本 v{version}"
