@@ -14,7 +14,7 @@ commands:
   tickblade:
     description: TickBlade 主指令
     usage: /<command> help
-    aliases: [ tb ]
+    aliases: [ tickb ]
 
 permissions:
   tickblade.admin:

@@ -117,7 +117,7 @@ public final class DespawnFixer implements Listener {
 
     // ---------- 處理 ----------
 
-    /** 檢查所有已載入的怪物（定時或 /tb cleanup） */
+    /** 檢查所有已載入的怪物（定時或 /tickb cleanup） */
     public int sweep() {
         Settings s = plugin.settings();
         if (!s.despawnEnabled) return 0;

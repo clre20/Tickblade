@@ -27,7 +27,7 @@
   - 暫停期間村民照常可以交易；沒有職業的村民不暫停（才能找到新的工作站）
   - 自動辨識鐵傀儡農場（被關住的村民附近有殭屍類生物就不暫停）
   - 生物名字含有「保留」（可設定）就不會被暫停
-  - 暫停狀態存在生物身上，關閉功能、關服或執行 `/tb ai restore` 都會完整恢復
+  - 暫停狀態存在生物身上，關閉功能、關服或執行 `/tickb ai restore` 都會完整恢復
 - **其他**：
   - 所有文字都在 `messages.yml`，預設繁體中文
   - `config.yml`、`messages.yml` 缺少的項目會在啟動與重載時自動補回，保留原本的值
@@ -35,22 +35,24 @@
 
 ## 指令與權限
 
-所有指令都以 `/tickblade` 開頭，別名 `/tb`。
+所有指令都以 `/tickblade` 開頭，別名 `/tickb`。
 
 | 指令 | 說明 | 執行者 | 權限節點 | 預設 |
 |---|---|---|---|---|
-| `/tb help` | 列出自己有權限的指令 | 玩家、主控台 | `tickblade.help` | OP |
-| `/tb status` | 平均 MSPT、降載等級、AI 暫停數量、消失判斷與卡頓統計 | 玩家、主控台 | `tickblade.status` | OP |
-| `/tb hotspots` | 開啟熱點區塊介面 | 玩家 | `tickblade.hotspots` | OP |
-| `/tb reports` | 列出已存檔的 spark 報告 | 玩家、主控台 | `tickblade.reports` | OP |
-| `/tb profile` | 立即錄製一份只含長 tick 的 spark 報告 | 玩家、主控台 | `tickblade.profile` | OP |
-| `/tb cleanup` | 立即檢查所有已載入的怪物 | 玩家、主控台 | `tickblade.cleanup` | OP |
-| `/tb ai restore` | 恢復所有被暫停的生物 AI | 玩家、主控台 | `tickblade.ai` | OP |
-| `/tb reload` | 重新載入 `config.yml` 與 `messages.yml` | 玩家、主控台 | `tickblade.reload` | OP |
-| `/tb version` | 顯示版本並檢查更新 | 玩家、主控台 | `tickblade.version` | OP |
+| `/tickb help` | 列出自己有權限的指令 | 玩家、主控台 | `tickblade.help` | OP |
+| `/tickb status` | 平均 MSPT、降載等級、AI 暫停數量、消失判斷與卡頓統計 | 玩家、主控台 | `tickblade.status` | OP |
+| `/tickb hotspots` | 開啟熱點區塊介面（另需 OP 等級 2 以上） | 玩家 | `tickblade.hotspots` | OP |
+| `/tickb reports` | 列出已存檔的 spark 報告 | 玩家、主控台 | `tickblade.reports` | OP |
+| `/tickb profile` | 立即錄製一份只含長 tick 的 spark 報告 | 玩家、主控台 | `tickblade.profile` | OP |
+| `/tickb cleanup` | 立即檢查所有已載入的怪物 | 玩家、主控台 | `tickblade.cleanup` | OP |
+| `/tickb ai restore` | 恢復所有被暫停的生物 AI | 玩家、主控台 | `tickblade.ai` | OP |
+| `/tickb reload` | 重新載入 `config.yml` 與 `messages.yml` | 玩家、主控台 | `tickblade.reload` | OP |
+| `/tickb version` | 顯示版本並檢查更新 | 玩家、主控台 | `tickblade.version` | OP |
 | （通知） | 收到自動錄製、報告存檔、降載等級變化的通知 | 玩家 | `tickblade.notify` | OP |
 
 > `tickblade.admin` 包含以上全部權限。
+>
+> 熱點介面可以傳送到任何區塊，所以除了權限，還需要 `ops.json` 中的 OP 等級達到 `hotspots.min-op-level`（預設 2；設 0 = 只看權限）。
 >
 > 有 `tickblade.version` 權限的玩家，在有新版本時登入 3 秒後會收到提醒。
 
@@ -62,10 +64,10 @@
 2. 或在卡的時候手動錄一份：
 
 ```bash
-/tb profile
+/tickb profile
 ```
 
-3. 錄完後用 `/tb reports` 查看檔名，到 `plugins/TickBlade/reports/` 下載檔案
+3. 錄完後用 `/tickb reports` 查看檔名，到 `plugins/TickBlade/reports/` 下載檔案
 4. 把 `.sparkprofile` 檔案拖進 https://spark.lucko.me 即可查看
 
 - 每次錄製長度、只記錄超過幾毫秒的 tick、冷卻時間都可以在 `spike-detector.auto-profile` 設定
@@ -74,7 +76,7 @@
 ### 2. 找到生物太多的地方
 
 ```bash
-/tb hotspots
+/tickb hotspots
 ```
 
 - 左鍵點擊下方按鈕切換排序：實體 → 方塊實體 → 漏斗
@@ -88,7 +90,7 @@
 ### 4. 移除插件前
 
 ```bash
-/tb ai restore
+/tickb ai restore
 ```
 
 - 關服時也會自動恢復已載入的生物；之後若關閉 `ai-pause.enabled`，未載入區塊裡的生物會在區塊載入時恢復
@@ -97,6 +99,7 @@
 
 | 設定 | 說明 |
 |---|---|
+| `hotspots.min-op-level` | 開啟熱點介面需要的 OP 等級（0 = 不檢查） |
 | `protection.name-keyword` | 名字含有這段文字的生物，消失判斷與暫停 AI 都不處理 |
 | `despawn-fix.block-enderman-pickup` | 阻止終界使者撿方塊 |
 | `despawn-fix.worlds` / `ai-pause.worlds` | 套用的世界，空清單 = 全部世界 |
@@ -114,9 +117,9 @@
 | `common.*` | 權限不足、重載結果等共用訊息 |
 | `help.*` | 指令說明 |
 | `version.*` | 版本檢查結果與登入提醒 |
-| `status.*` | `/tb status` 的每一行 |
+| `status.*` | `/tickb status` 的每一行 |
 | `spike.*` | 自動錄製、報告存檔、錄製失敗 |
-| `reports.*` | `/tb reports` 列表 |
+| `reports.*` | `/tickb reports` 列表 |
 | `shedding.*` | 降載等級變化通知 |
 | `hotspots.*` | 熱點區塊介面的標題、物品名稱與說明 |
 | `console.*` | 後台紀錄 |

@@ -94,7 +94,8 @@ public final class HotspotMenu implements InventoryHolder {
 
     /** 由 MenuListener 呼叫；只會收到左鍵點擊上方介面的格子 */
     void click(Player p, int slot) {
-        if (!p.hasPermission(TickBlade.PERM_HOTSPOTS)) {
+        if (!p.hasPermission(TickBlade.PERM_HOTSPOTS)
+                || !clre20.tickBlade.util.OpLevel.atLeast(p, plugin.settings().hotspotMinOpLevel)) {
             p.closeInventory();
             return;
         }

@@ -6,6 +6,7 @@ import clre20.tickBlade.config.Settings;
 import clre20.tickBlade.monitor.TickMonitor;
 import clre20.tickBlade.spark.SparkCapture;
 import clre20.tickBlade.update.UpdateChecker;
+import clre20.tickBlade.util.OpLevel;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -74,6 +75,11 @@ public final class TickBladeCommand implements TabExecutor {
                     m.send(sender, "common.player-only");
                     return true;
                 }
+                int need = plugin.settings().hotspotMinOpLevel;
+                if (!OpLevel.atLeast(p, need)) {
+                    m.send(sender, "common.op-level-required", "level", need);
+                    return true;
+                }
                 plugin.hotspots().open(p, false);
             }
             case "reports" -> reports(sender);
@@ -102,8 +108,9 @@ public final class TickBladeCommand implements TabExecutor {
     private void help(CommandSender sender, String label) {
         Messages m = plugin.messages();
         m.sendPlain(sender, "help.header", "version", plugin.getPluginMeta().getVersion());
-        for (String[] info : SUBS.values()) {
-            if (!sender.hasPermission(info[0])) continue;
+        for (Map.Entry<String, String[]> e : SUBS.entrySet()) {
+            String[] info = e.getValue();
+            if (!canUse(sender, e.getKey(), info[0])) continue;
             m.sendPlain(sender, "help.line", "label", label, "usage", info[1], "description", m.raw(info[2]));
         }
     }
@@ -222,6 +229,13 @@ public final class TickBladeCommand implements TabExecutor {
         sendResultTo(plugin, sender, r);
     }
 
+    /** 權限＋（熱點介面）OP 等級；主控台不能開介面，所以不列出 hotspots */
+    private boolean canUse(CommandSender sender, String sub, String perm) {
+        if (!sender.hasPermission(perm)) return false;
+        if (!sub.equals("hotspots")) return true;
+        return sender instanceof Player p && OpLevel.atLeast(p, plugin.settings().hotspotMinOpLevel);
+    }
+
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String @NotNull [] args) {
         List<String> out = new ArrayList<>();
@@ -229,7 +243,7 @@ public final class TickBladeCommand implements TabExecutor {
             String prefix = args[0].toLowerCase(Locale.ROOT);
             if (sender.hasPermission(TickBlade.PERM_HELP) && "help".startsWith(prefix)) out.add("help");
             for (Map.Entry<String, String[]> e : SUBS.entrySet()) {
-                if (e.getKey().startsWith(prefix) && sender.hasPermission(e.getValue()[0])) out.add(e.getKey());
+                if (e.getKey().startsWith(prefix) && canUse(sender, e.getKey(), e.getValue()[0])) out.add(e.getKey());
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("ai") && sender.hasPermission(TickBlade.PERM_AI)) {
             if ("restore".startsWith(args[1].toLowerCase(Locale.ROOT))) out.add("restore");

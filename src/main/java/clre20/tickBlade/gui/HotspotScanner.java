@@ -169,7 +169,8 @@ public final class HotspotScanner {
         waiters.clear();
         for (UUID id : list) {
             Player p = plugin.getServer().getPlayer(id);
-            if (p != null && p.hasPermission(clre20.tickBlade.TickBlade.PERM_HOTSPOTS)) {
+            if (p != null && p.hasPermission(clre20.tickBlade.TickBlade.PERM_HOTSPOTS)
+                    && clre20.tickBlade.util.OpLevel.atLeast(p, plugin.settings().hotspotMinOpLevel)) {
                 HotspotMenu.open(plugin, p, HotspotMenu.Mode.ENTITIES, 0);
             }
         }

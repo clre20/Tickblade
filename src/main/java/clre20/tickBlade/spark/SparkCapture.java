@@ -59,7 +59,7 @@ public final class SparkCapture {
         return true;
     }
 
-    /** 手動錄製（/tb profile） */
+    /** 手動錄製（/tickb profile） */
     public void startManual(CommandSender sender) {
         if (running) {
             plugin.messages().send(sender, "spike.profile-already");

@@ -1,5 +1,5 @@
 # TickBlade 設定檔
-# 修改後執行 /tb reload 即可生效（不需要重開伺服器）
+# 修改後執行 /tickb reload 即可生效（不需要重開伺服器）
 # 缺少的項目會在啟動與重載時自動補回，原本的值會保留
 config-version: 1
 
@@ -70,8 +70,11 @@ spike-detector:
     enabled: true
     max-size-kb: 1024
 
-# 熱點區塊介面（/tb hotspots）
+# 熱點區塊介面（/tickb hotspots）
 hotspots:
+  # 除了 tickblade.hotspots 權限，還需要的 OP 等級（依 ops.json 的 level；0 = 不檢查）
+  # 介面可以傳送到任何區塊，所以預設要求 OP 等級 2 以上
+  min-op-level: 2
   # 掃描結果保留幾秒，期間再開介面不重新掃描
   cache-seconds: 30
   # 掃描方塊實體時每 tick 處理幾個區塊
