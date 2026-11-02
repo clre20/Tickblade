@@ -33,6 +33,7 @@ public final class TickBlade extends JavaPlugin implements Listener {
     public static final String PERM_HELP = "tickblade.help";
     public static final String PERM_STATUS = "tickblade.status";
     public static final String PERM_HOTSPOTS = "tickblade.hotspots";
+    public static final String PERM_INSPECT = "tickblade.inspect";
     public static final String PERM_REPORTS = "tickblade.reports";
     public static final String PERM_PROFILE = "tickblade.profile";
     public static final String PERM_CLEANUP = "tickblade.cleanup";

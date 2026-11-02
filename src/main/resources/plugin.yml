@@ -24,6 +24,7 @@ permissions:
       tickblade.help: true
       tickblade.status: true
       tickblade.hotspots: true
+      tickblade.inspect: true
       tickblade.reports: true
       tickblade.profile: true
       tickblade.cleanup: true
@@ -39,6 +40,9 @@ permissions:
     default: op
   tickblade.hotspots:
     description: 開啟熱點區塊介面並傳送
+    default: op
+  tickblade.inspect:
+    description: 查看單隻生物為什麼被暫停 AI／保持清醒、會不會被消失判斷處理
     default: op
   tickblade.reports:
     description: 列出 spark 報告
