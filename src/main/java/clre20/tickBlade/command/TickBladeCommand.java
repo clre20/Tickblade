@@ -87,7 +87,7 @@ public final class TickBladeCommand implements TabExecutor {
             case "cleanup" -> m.send(sender, "cleanup.queued", "count", plugin.despawnFixer().sweep());
             case "ai" -> {
                 if (args.length < 2 || !args[1].equalsIgnoreCase("restore")) {
-                    m.send(sender, "common.unknown-subcommand", "label", label);
+                    m.send(sender, "ai.usage", "label", label);
                     return true;
                 }
                 int n = plugin.aiPauser().restoreAll();

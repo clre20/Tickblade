@@ -83,6 +83,7 @@ public final class Settings {
     public final int crowdResumeAt;
     public final boolean aiConfined;
     public final double golemFarmRadius;
+    public final double villagerThreatRadius;
     public final boolean aiSkipTamed;
     public final Set<EntityType> aiExcluded;
     public final List<TimeWindow> villagerWindows;
@@ -145,6 +146,7 @@ public final class Settings {
         crowdResumeAt = clamp(c.getInt("ai-pause.crowd.resume-at", 3), 1, pauseAt - 1);
         aiConfined = c.getBoolean("ai-pause.confined", true);
         golemFarmRadius = clamp(c.getDouble("ai-pause.golem-farm-radius", 10), 0, 32);
+        villagerThreatRadius = clamp(c.getDouble("ai-pause.wake.villager-threat-radius", 12), 0, 32);
         aiSkipTamed = c.getBoolean("ai-pause.skip-tamed", true);
         aiExcluded = types(c.getStringList("ai-pause.excluded-types"), "ai-pause.excluded-types", unknownType);
         villagerWindows = windows(c.getStringList("ai-pause.wake.villager-work-windows"));

@@ -8,16 +8,16 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Projectile;
 import org.bukkit.entity.Raider;
 import org.bukkit.entity.Sheep;
 import org.bukkit.entity.Tameable;
 import org.bukkit.entity.Villager;
 import org.bukkit.entity.Zoglin;
+import org.bukkit.entity.Vex;
+import org.bukkit.entity.Witch;
 import org.bukkit.entity.Zombie;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -159,7 +159,7 @@ public final class AiPauser implements Listener {
         if (!paused && !mob.isAware()) return; // 別人關掉的 AI，不碰
 
         boolean eligible = eligible(mob, s);
-        boolean wake = eligible && needsAi(mob, s);
+        boolean wake = eligible && needsAi(mob, s, snap);
         int crowd = snap.countSameType(i, s.crowdRadius);
 
         if (!paused) {
@@ -213,13 +213,17 @@ public final class AiPauser implements Listener {
     }
 
     /** 這個時候需要 AI，交給原版計算 */
-    private boolean needsAi(Mob mob, Settings s) {
+    private boolean needsAi(Mob mob, Settings s, WorldSnapshot snap) {
         Long until = wakeUntil.get(mob.getUniqueId());
         if (until != null && until > tick) return true;
         if (s.wakeLoveMode && mob instanceof Animals a && a.isLoveMode()) return true;
         if (s.wakeShearedSheep && mob instanceof Sheep sh && sh.isSheared() && sh.isAdult()) return true;
         if (mob instanceof Villager v) {
             if (v.isTrading() || v.isSleeping()) return true;
+            // 附近有殭屍、掠奪者等威脅：要有 AI 才會逃跑（被關住的村民跑不掉，交給鐵傀儡農場規則判斷）
+            if (s.villagerThreatRadius > 0
+                    && snap.threatWithin(mob.getX(), mob.getY(), mob.getZ(), s.villagerThreatRadius)
+                    && !Confinement.isConfined(mob)) return true;
             if (v.isAdult()) {
                 Villager.Profession p = v.getProfession();
                 // 沒有職業的村民要有 AI 才能找到工作站方塊（交易所剛放好工作站時）
@@ -238,7 +242,7 @@ public final class AiPauser implements Listener {
     /** 鐵傀儡農場：被關住的村民附近有殭屍類生物 */
     private boolean golemFarm(Mob mob, WorldSnapshot snap, Settings s) {
         if (!(mob instanceof Villager) || s.golemFarmRadius <= 0) return false;
-        return snap.zombieWithin(mob.getX(), mob.getY(), mob.getZ(), s.golemFarmRadius);
+        return snap.threatWithin(mob.getX(), mob.getY(), mob.getZ(), s.golemFarmRadius);
     }
 
     private void pause(Mob mob, PersistentDataContainer pdc, byte reason) {
@@ -274,14 +278,12 @@ public final class AiPauser implements Listener {
         wake(v, plugin.settings().wakeAfterTradeTicks);
     }
 
-    /** 被玩家攻擊時喚醒 */
+    /** 被任何生物（含投射物）攻擊時喚醒，才能反擊或逃跑 */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDamage(EntityDamageByEntityEvent e) {
         if (!(e.getEntity() instanceof Mob mob)) return;
         if (!mob.getPersistentDataContainer().has(pausedKey) && !wakeUntil.containsKey(mob.getUniqueId())) return;
-        Entity d = e.getDamager();
-        boolean byPlayer = d instanceof Player || (d instanceof Projectile p && p.getShooter() instanceof Player);
-        if (byPlayer) wake(mob, plugin.settings().wakeWhenDamagedTicks);
+        wake(mob, plugin.settings().wakeWhenDamagedTicks);
     }
 
     /** 功能關閉或世界不套用時，載入的區塊裡有暫停標記的就恢復 */
@@ -367,7 +369,7 @@ public final class AiPauser implements Listener {
         static WorldSnapshot take(World w, double radius) {
             List<Mob> mobs = new ArrayList<>(w.getEntitiesByClass(Mob.class));
             int zn = 0;
-            for (Mob m : mobs) if (isZombieType(m)) zn++;
+            for (Mob m : mobs) if (isVillagerThreat(m)) zn++;
             WorldSnapshot s = new WorldSnapshot(w, mobs.size(), zn, Math.max(1.0, radius));
             int zi = 0;
             for (int i = 0; i < mobs.size(); i++) {
@@ -378,7 +380,7 @@ public final class AiPauser implements Listener {
                 s.z[i] = m.getZ();
                 s.type[i] = m.getType().ordinal();
                 s.add(i);
-                if (isZombieType(m)) {
+                if (isVillagerThreat(m)) {
                     s.zx[zi] = s.x[i];
                     s.zy[zi] = s.y[i];
                     s.zz[zi] = s.z[i];
@@ -388,8 +390,10 @@ public final class AiPauser implements Listener {
             return s;
         }
 
-        private static boolean isZombieType(LivingEntity m) {
-            return m instanceof Zombie || m instanceof Zoglin || m.getType() == EntityType.ZOMBIFIED_PIGLIN;
+        /** 村民會害怕的生物：殭屍類（含屍殼、沉屍、殭屍村民）、豬屍獸、掠奪者類（女巫除外）、惱鬼 */
+        private static boolean isVillagerThreat(LivingEntity m) {
+            if (m instanceof Zombie || m instanceof Zoglin || m instanceof Vex) return true;
+            return m instanceof Raider && !(m instanceof Witch);
         }
 
         int size() {
@@ -443,7 +447,7 @@ public final class AiPauser implements Listener {
             return n;
         }
 
-        boolean zombieWithin(double px, double py, double pz, double radius) {
+        boolean threatWithin(double px, double py, double pz, double radius) {
             double r2 = radius * radius;
             for (int k = 0; k < zx.length; k++) {
                 double dx = zx[k] - px;
