@@ -1,0 +1,63 @@
+name: TickBlade
+description: 找出卡頓來源、修正越積越多的生物、自動降載、暫停擠在一起的生物 AI
+prefix: TickBlade
+version: '${project.version}'
+
+main: clre20.tickBlade.TickBlade
+api-version: '1.21'
+load: POSTWORLD
+website: https://github.com/clre20/TickBlade
+
+authors: [ Clre20 ]
+
+commands:
+  tickblade:
+    description: TickBlade 主指令
+    usage: /<command> help
+    aliases: [ tb ]
+
+permissions:
+  tickblade.admin:
+    description: TickBlade 全部權限
+    default: op
+    children:
+      tickblade.help: true
+      tickblade.status: true
+      tickblade.hotspots: true
+      tickblade.reports: true
+      tickblade.profile: true
+      tickblade.cleanup: true
+      tickblade.ai: true
+      tickblade.reload: true
+      tickblade.version: true
+      tickblade.notify: true
+  tickblade.help:
+    description: 查看指令說明
+    default: op
+  tickblade.status:
+    description: 查看 MSPT、降載、AI 暫停、卡頓統計
+    default: op
+  tickblade.hotspots:
+    description: 開啟熱點區塊介面並傳送
+    default: op
+  tickblade.reports:
+    description: 列出 spark 報告
+    default: op
+  tickblade.profile:
+    description: 手動錄製 spark 報告
+    default: op
+  tickblade.cleanup:
+    description: 立即檢查所有已載入的怪物
+    default: op
+  tickblade.ai:
+    description: 恢復被暫停的生物 AI
+    default: op
+  tickblade.reload:
+    description: 重新載入設定檔
+    default: op
+  tickblade.version:
+    description: 檢查更新，並在登入時收到新版本提醒
+    default: op
+  tickblade.notify:
+    description: 收到卡頓錄製、降載等級變化的通知
+    default: op

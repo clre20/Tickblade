@@ -1,0 +1,145 @@
+# TickBlade 設定檔
+# 修改後執行 /tb reload 即可生效（不需要重開伺服器）
+# 缺少的項目會在啟動與重載時自動補回，原本的值會保留
+config-version: 1
+
+prefix: "&8[&cTickBlade&8] &r"
+
+update-checker:
+  # 伺服器啟動時在背景檢查 GitHub 是否有新版本
+  check-on-startup: true
+  # 有 tickblade.version 權限的玩家登入 3 秒後提醒新版本
+  notify-on-join: true
+
+# 保護規則：A（消失判斷）與 D（暫停 AI）都會遵守
+protection:
+  # 名字中含有這段文字的生物一律不處理（用命名牌標記）
+  name-keyword: "保留"
+  # 有其他插件或資料包標記的生物不處理（MythicMobs、Shopkeepers、NPC 等）
+  skip-scoreboard-tags: true
+  skip-foreign-pdc: true
+  metadata-keys:
+    - NPC
+    - shopkeeper
+    - MyPet
+
+# A. 生物消失判斷
+# 終界使者拿著方塊、怪物撿起物品穿戴後會變成「永遠不會消失」而越積越多
+despawn-fix:
+  enabled: true
+  # 套用的世界，空清單 = 全部世界
+  worlds: []
+  # 阻止終界使者撿起方塊（放下方塊不受影響）
+  block-enderman-pickup: true
+  # 區塊載入時檢查該區塊的怪物
+  fix-on-chunk-load: true
+  # 每隔幾分鐘檢查一次所有已載入的怪物（0 = 關閉）
+  sweep-interval-minutes: 5
+  # 每 tick 最多處理幾隻
+  max-per-tick: 40
+  # 被關住、無法移動的不處理（農場用的生物通常是關住的）
+  skip-confined: true
+  # 不處理的生物種類
+  excluded-types:
+    - ZOMBIE_VILLAGER
+
+# B. 卡頓偵測
+spike-detector:
+  enabled: true
+  # 單一 tick 超過幾毫秒算一次卡頓
+  spike-threshold-ms: 500
+  # 在 trigger-window-seconds 秒內出現幾次卡頓，就自動錄 spark
+  trigger-count: 2
+  trigger-window-seconds: 300
+  # 開機後幾秒內不偵測（開機載入時本來就會卡）
+  startup-grace-seconds: 180
+  auto-profile:
+    enabled: true
+    # spark 只記錄超過幾毫秒的 tick
+    only-ticks-over-ms: 100
+    # 每次錄幾秒
+    duration-seconds: 300
+    # 兩次自動錄製至少間隔幾分鐘
+    cooldown-minutes: 30
+  # 報告存放於 plugins/TickBlade/reports/，超過任一上限就刪除最舊的
+  reports:
+    max-files: 20
+    max-total-mb: 500
+  # 每次卡頓記錄到 reports/spikes.log（超過大小時改名為 spikes.log.1，只保留一份舊檔）
+  spike-log:
+    enabled: true
+    max-size-kb: 1024
+
+# 熱點區塊介面（/tb hotspots）
+hotspots:
+  # 掃描結果保留幾秒，期間再開介面不重新掃描
+  cache-seconds: 30
+  # 掃描方塊實體時每 tick 處理幾個區塊
+  chunks-per-tick: 150
+
+# C. 自動降載：MSPT 過高時降低每位玩家的模擬距離／視距，恢復後還原
+load-shedding:
+  enabled: true
+  # 取最近幾秒的平均 MSPT
+  average-seconds: 10
+  # 兩次調整之間至少間隔幾秒
+  min-seconds-between-changes: 15
+  # 平均 MSPT 連續 recover-after-seconds 秒低於這個值，就還原一級
+  recover-below-mspt: 35
+  recover-after-seconds: 60
+  # 由低到高排列；距離填 0 = 不變更
+  levels:
+    - mspt: 45
+      simulation-distance: 5
+      view-distance: 0
+    - mspt: 55
+      simulation-distance: 4
+      view-distance: 5
+  # 等級變化時通知有 tickblade.notify 權限的玩家
+  notify: true
+
+# D. 擠在一起或被關住的生物暫停 AI
+ai-pause:
+  enabled: true
+  # 套用的世界，空清單 = 全部世界
+  worlds: []
+  # 每隔幾秒掃描一次
+  scan-interval-seconds: 5
+  # 每 tick 最多花幾毫秒處理（掃描會分散到多個 tick）
+  max-ms-per-tick: 1.0
+  crowd:
+    # 半徑幾格內的同類生物（含自己）
+    radius: 1.5
+    # 達到這個數量就暫停
+    pause-at: 5
+    # 降到這個數量（含）以下才恢復
+    resume-at: 3
+  # 前後左右都走不過去，或坐在船、礦車上時暫停
+  confined: true
+  # 鐵傀儡農場：被關住的村民附近幾格內有殭屍類生物就不暫停（0 = 關閉）
+  golem-farm-radius: 10
+  # 不暫停馴服的寵物
+  skip-tamed: true
+  # 不暫停的生物種類
+  excluded-types:
+    - ENDER_DRAGON
+    - WITHER
+    - WARDEN
+    - ELDER_GUARDIAN
+    - ALLAY
+    - VEX
+    - WANDERING_TRADER
+  # 需要 AI 時暫時喚醒，計算交給原版
+  wake:
+    # 村民補貨：遊戲時間（0~23999）在這些區段內喚醒；原版一天最多補貨 2 次，兩次間隔至少 2400
+    villager-work-windows:
+      - "2000-3400"
+      - "5000-6400"
+    # 村民交易後喚醒幾秒（讓村民升級）
+    villager-after-trade-seconds: 10
+    # 被玩家攻擊後喚醒幾秒
+    when-damaged-seconds: 10
+    # 被剪過毛的羊保持清醒，吃草長回羊毛後再暫停
+    sheared-sheep: true
+    # 進入繁殖狀態的動物保持清醒
+    love-mode: true

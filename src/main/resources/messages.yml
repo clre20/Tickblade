@@ -1,0 +1,129 @@
+# TickBlade 訊息檔
+# 顏色碼用 &，變數用 {名稱}
+# 缺少的項目會在啟動與重載時自動補回，原本的文字會保留
+messages-version: 1
+
+common:
+  no-permission: "&c你沒有權限使用這個指令。"
+  player-only: "&c這個指令只能由玩家執行。"
+  unknown-subcommand: "&c未知的子指令，輸入 &e/{label} help &c查看說明。"
+  reload-done: "&a已重新載入 config.yml 與 messages.yml。"
+  reload-failed: "&c重新載入失敗：{error}（詳細內容請看後台）"
+
+help:
+  header: "&6===== TickBlade &ev{version} &6====="
+  line: "&e/{label} {usage} &7- {description}"
+  entries:
+    status: "查看 MSPT、降載等級、AI 暫停與卡頓統計"
+    hotspots: "開啟熱點區塊介面"
+    reports: "列出已存檔的 spark 報告"
+    profile: "立即錄一份只含長 tick 的 spark 報告"
+    cleanup: "立即檢查所有已載入的怪物是否該恢復消失"
+    ai-restore: "恢復所有被暫停的生物 AI"
+    reload: "重新載入設定檔"
+    version: "顯示版本並檢查更新"
+
+version:
+  current: "&7目前版本：&ev{version}"
+  checking: "&7正在檢查 GitHub 最新版本…"
+  disabled: "&7更新檢查已在 config.yml 關閉。"
+  newer: "&a有新版本：&ev{latest}&a（目前 v{version}）&7 {url}"
+  latest: "&a已是最新版本。"
+  dev: "&e目前版本比 GitHub 新（開發版）。&7GitHub 最新：v{latest}"
+  failed: "&c檢查更新失敗：{reason}"
+  join-notify: "&aTickBlade 有新版本 &ev{latest}&a（目前 v{version}）&7 {url}"
+  reason-no-release: "尚無發布版本"
+  reason-http: "HTTP {code}"
+  reason-network: "無法連線"
+
+status:
+  header: "&6===== TickBlade 狀態 ====="
+  mspt: "&7平均 MSPT（{seconds} 秒）：{color}{mspt} ms &7｜最近 1 tick：{last} ms"
+  shedding: "&7降載等級：&e{level}&7/{max}  &7模擬距離 {sim}｜視距 {view}"
+  shedding-off: "&7降載：&8已關閉"
+  shedding-none: "&7降載等級：&a0&7（正常）"
+  ai: "&7AI 暫停中：&e{paused} &7隻（擁擠 {crowd}｜被關住 {confined}）｜暫時喚醒 {woken}"
+  ai-off: "&7AI 暫停：&8已關閉"
+  despawn: "&7消失判斷：本次啟動已修正 &e{fixed} &7隻（掉落方塊 {blocks}｜掉落物品 {items}）｜阻止撿方塊 {blocked} 次"
+  despawn-off: "&7消失判斷：&8已關閉"
+  spikes: "&7卡頓（≥{threshold} ms）：本次啟動 &e{total} &7次｜最高 {max} ms｜最近：{last}"
+  spikes-none: "無"
+  profile-running: "&7spark 自動錄製：&e錄製中&7（剩餘約 {seconds} 秒）"
+  profile-idle: "&7spark 自動錄製：待命｜已存 {count} 份報告"
+
+spike:
+  profile-started: "&e卡頓次數達到門檻，已開始錄製 spark 報告（{seconds} 秒，只記錄超過 {over} ms 的 tick）。"
+  profile-manual-started: "&e已開始錄製 spark 報告（{seconds} 秒，只記錄超過 {over} ms 的 tick）。"
+  profile-saved: "&a已存檔 spark 報告：&f{file}&7（{size}）。把檔案拖進 https://spark.lucko.me 即可查看。"
+  profile-failed: "&c錄製 spark 報告失敗：{reason}"
+  profile-busy: "&espark 目前已有其他錄製在進行，略過這次自動錄製。"
+  profile-cooldown: "&e自動錄製冷卻中，還要 {minutes} 分鐘。"
+  profile-already: "&e已經在錄製中了。"
+  no-spark: "&c找不到 spark（Paper 內建的 spark 被關閉了嗎？），無法錄製報告。"
+  reason-timeout: "等太久沒有收到 spark 的存檔結果"
+  reason-move: "無法搬移報告檔"
+
+reports:
+  header: "&6===== spark 報告（{count} 份，{size}）====="
+  line: "&e{file} &7{size}  {date}"
+  empty: "&7目前沒有報告。"
+  footer: "&7位置：plugins/TickBlade/reports/，拖進 https://spark.lucko.me 即可查看。"
+
+shedding:
+  raised: "&e伺服器負載偏高（平均 {mspt} ms），降載等級 {from} → {to}：模擬距離 {sim}、視距 {view}"
+  lowered: "&a伺服器負載恢復（平均 {mspt} ms），降載等級 {from} → {to}"
+  unchanged: "不變"
+
+ai:
+  restored: "&a已恢復 {count} 隻生物的 AI。"
+
+cleanup:
+  queued: "&a已將 {count} 隻怪物加入檢查佇列。"
+
+hotspots:
+  scanning: "&7正在掃描已載入的區塊…"
+  busy: "&e正在掃描中，請稍候。"
+  title: "&8熱點區塊（{mode}）第 {page}/{pages} 頁"
+  mode-entities: "實體"
+  mode-tiles: "方塊實體"
+  mode-hoppers: "漏斗"
+  entry-name: "&e{world} &7區塊 ({cx}, {cz})"
+  entry-lore:
+    - "&7座標：&f{x}, {z}"
+    - "&7實體：&f{entities}"
+    - "&7方塊實體：&f{tiles}  &7漏斗：&f{hoppers}"
+    - "&7最多的實體："
+    - "{types}"
+    - ""
+    - "&a左鍵：傳送過去"
+  type-line: "&8 - &f{type} &7×{count}"
+  type-none: "&8 - 無"
+  prev: "&e上一頁"
+  next: "&e下一頁"
+  mode-button: "&b排序：{mode}"
+  mode-button-lore:
+    - "&7左鍵切換：實體 → 方塊實體 → 漏斗"
+  refresh: "&a重新掃描"
+  refresh-lore:
+    - "&7掃描時間：{time}"
+  close: "&c關閉"
+  empty: "&7沒有已載入的區塊。"
+  teleported: "&a已傳送到 {world} ({x}, {y}, {z})。"
+  teleport-failed: "&c傳送失敗（世界可能已卸載）。"
+
+console:
+  enabled: "TickBlade v{version} 已啟用"
+  config-error: "{file} 格式錯誤，暫時使用內建預設值，請修正後執行 /tb reload：{error}"
+  config-updated: "{file} 已補上缺少的項目（舊檔備份為 {file}.bak）"
+  update-newer: "有新版本 v{latest}（目前 v{version}）：{url}"
+  update-latest: "已是最新版本 v{version}"
+  update-dev: "目前版本 v{version} 比 GitHub 最新 v{latest} 新（開發版）"
+  update-failed: "檢查更新失敗：{reason}"
+  spike: "卡頓：單一 tick {ms} ms"
+  profile-started: "已開始錄製 spark 報告（{seconds} 秒）"
+  profile-saved: "spark 報告已存檔：{file}"
+  profile-failed: "spark 報告錄製失敗：{reason}"
+  shedding-raised: "降載等級 {from} → {to}（平均 {mspt} ms）"
+  shedding-lowered: "降載等級 {from} → {to}（平均 {mspt} ms）"
+  ai-restored: "已恢復 {count} 隻生物的 AI"
+  unknown-type: "{section} 裡的生物種類「{type}」不存在，已略過"
