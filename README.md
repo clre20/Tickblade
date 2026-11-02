@@ -136,3 +136,158 @@
 | `ai-pause.wake.villager-threat-radius` | 附近幾格內有威脅時喚醒村民（0 = 關閉） |
 | `ai-pause.hostile-target-radius` | 被困住的敵對生物，幾格內有可攻擊目標就不暫停（0 = 被困住的敵對生物一律不暫停） |
 | `ai-pause.excluded-types` | 永遠不暫停的生物種類 |
+
+
+Identify sources of server lag, fix accumulating non-despawning mobs, automatically shed load when MSPT spikes, and pause the AI of crowded or trapped entities—all while preserving vanilla mechanics such as villager trading, restocking, and sheep shearing.
+
+Compatible with Paper 1.21.11 and 26.1.x–26.3 (Paper forks such as Purpur are theoretically compatible; Spigot and Folia are not supported). Paper 1.21.11 requires Java 21; 26.x servers require Java 25.
+
+---
+
+## Features
+
+- **Despawn Issue Resolution**:
+  - In vanilla Minecraft, Endermen carrying blocks and Zombies or Skeletons that pick up items/armor become persistent and will never despawn, leading to unbounded accumulation over time.
+  - Prevents Endermen from picking up blocks (placing blocks is unaffected; configurable per world).
+  - During chunk loading and periodic scans, freely roaming mobs of this type drop their held items/blocks on the spot and regain normal despawn eligibility. Dropped items cannot be picked up again by other monsters.
+  - Trapped mobs, entities riding boats/minecarts, named mobs, leashed mobs, raid participants, Zombie Villagers, and custom mobs created by other plugins are never modified.
+
+- **Lag Spike Detection & Offline spark Profiling**:
+  - Monitors individual tick durations. When the tick time repeatedly exceeds a threshold (default: 500 ms) within a short window, an automated spark profiler captures long ticks exclusively.
+  - Profiler dumps are stored directly as `.sparkprofile` files in `plugins/TickBlade/reports/`, eliminating expired web link issues. Enforces strict file count and disk usage limits.
+  - Every detected spike is logged to `spikes.log` with automatic file size rotation.
+
+- **Hotspot Chunk GUI**:
+  - Chest GUI displays chunk statistics: entity counts, block entity counts, hopper counts, and the most prevalent mob type (localized to each player's client language).
+  - Independent toggles for Metric (Entities / Block Entities / Hoppers) and Sorting (Highest / Lowest / Nearest).
+  - Left-click to teleport directly to the hotspot location. Scans occur strictly on-demand when opening the GUI and are distributed across multiple ticks to avoid frame drops.
+
+- **Dynamic Load Shedding**:
+  - Tracks running average MSPT over recent seconds and adjusts per-player simulation distance and view distance across progressive tiers.
+  - Once server performance stabilizes, distances are restored gradually step-by-step to prevent oscillation.
+
+- **Smart AI Pausing for Crowded & Trapped Mobs**:
+  - Automatically pauses mob AI when $\ge 5$ mobs of the same type congregate within a $1.5$-block radius, or when a mob is completely boxed in and unable to pathfind in any direction. Resumes when the crowd drops to $\le 3$ and space becomes available (thresholds configurable).
+  - **Hostile Mob Handling**: Trapped hostiles (Zombies, Skeletons, Slimes, etc.) stay active if a viable target (Survival/Adventure player, Villager, Iron Golem) is within 16 blocks; they only pause if no target is in range. Crowded hostiles always pause.
+  - **Dynamic Awakening for Vanilla Mechanics**: Wakes up entities temporarily when computational AI is required, returning logic to the vanilla engine:
+    - Villagers during daytime work/restock hours and during trade-level progression.
+    - Sheared sheep grazing to regrow wool.
+    - Animals entering breeding/love mode.
+    - Any entity taking damage from attacks.
+  - Unconfined villagers wake up and flee if a threat (Zombie, Pillager, etc.) enters a 12-block radius.
+  - Villagers remain interactive and tradable while paused; right-clicking a paused villager temporarily wakes it for 10 seconds.
+  - **Unemployed Villagers**: Free-roaming unemployed villagers remain unpaused to pathfind toward job site blocks. Confined ones pause, but wake up for 60 seconds whenever a workstation is placed nearby.
+  - **Iron Golem Farm Detection**: Automatically recognizes iron golem farm setups (confined villagers near hostile mobs are not paused).
+  - Mobs with custom names containing the keyword `保留` (configurable, e.g., "Keep") are excluded from AI pausing.
+  - Paused states are saved persistently on the entity and cleanly restored upon plugin disable, server shutdown, or running `/tickb ai restore`.
+
+- **Targeted Entity Inspector**:
+  - Target any mob (works through glass and fences) and run `/tickb inspect` to view its real-time evaluation: AI pause status, reasons, local crowd count, and containment status.
+  - Displays wake triggers and bypass reasons (e.g., active work window, nearby threat, golem farm setup, name exemption, third-party plugin entity).
+  - Shows despawn eligibility evaluation and highlights which exact rule bypassed or flagged the entity.
+  - Non-destructive and read-only; logic mirrors background tick scans identically.
+
+- **Additional System Features**:
+  - Fully customizable text in `messages.yml` (Traditional Chinese by default).
+  - Missing keys in `config.yml` and `messages.yml` are automatically appended on startup and reload while preserving existing user values.
+  - Asynchronous GitHub update checker on startup; alerts administrators 3 seconds after joining if a newer release is found.
+
+---
+
+## Commands & Permissions
+
+Base command: `/tickblade` (Alias: `/tickb`).
+
+| Command | Description | Sender | Permission Node | Default |
+|---|---|---|---|---|
+| `/tickb help` | Lists all commands available to the sender | Player, Console | `tickblade.help` | OP |
+| `/tickb status` | Displays average MSPT, shedding level, paused AI counts, and spike metrics | Player, Console | `tickblade.status` | OP |
+| `/tickb hotspots` | Opens the Hotspot Chunk GUI (requires OP level 2+) | Player | `tickblade.hotspots` | OP |
+| `/tickb inspect` | Inspects the target entity under crosshairs (requires OP level 2+) | Player | `tickblade.inspect` | OP |
+| `/tickb reports` | Lists saved spark profile reports | Player, Console | `tickblade.reports` | OP |
+| `/tickb profile` | Manually captures a spark report filtering for long ticks | Player, Console | `tickblade.profile` | OP |
+| `/tickb cleanup` | Forces an immediate scan on all currently loaded monsters | Player, Console | `tickblade.cleanup` | OP |
+| `/tickb ai restore` | Restores AI to all currently paused entities | Player, Console | `tickblade.ai` | OP |
+| `/tickb reload` | Reloads `config.yml` and `messages.yml` | Player, Console | `tickblade.reload` | OP |
+| `/tickb version` | Displays plugin version and checks for updates | Player, Console | `tickblade.version` | OP |
+| *(Notification)* | Receives alerts for auto-profiling, report generation, and load-shedding shifts | Player | `tickblade.notify` | OP |
+
+> **Notes**:
+> - `tickblade.admin` grants all permissions listed above.
+> - Because `/tickb hotspots` allows teleportation across any chunk, it requires both the permission node and an OP permission level meeting `hotspots.min-op-level` (default: 2; set to `0` to check permissions only).
+> - Players with `tickblade.version` receive an update notification 3 seconds after logging in if an update is available.
+
+---
+
+## Usage Guide
+
+### 1. Diagnosing Lag Spikes
+
+1. Under default settings, TickBlade automatically starts profiling whenever tick times hit the spike threshold repeatedly.
+2. Alternatively, capture a profile manually during a lag event:
+
+```bash
+/tickb profile
+```
+
+3. Run `/tickb reports` to locate the generated filename, then retrieve it from `plugins/TickBlade/reports/`.
+4. Drag and drop the `.sparkprofile` file into [spark.lucko.me](https://spark.lucko.me) to analyze thread activity.
+
+- Capture duration, minimum tick duration filter, and cooldown intervals are configurable under `spike-detector.auto-profile`.
+- Requires spark (bundled with Paper); ensure `spark.enabled: true` is set in `paper-global.yml`.
+
+### 2. Locating Entity & Tile Congestion
+
+```bash
+/tickb hotspots
+```
+
+- **Metric Toggle**: Left-click to switch between `Entities` $\rightarrow$ `Block Entities` $\rightarrow$ `Hoppers`.
+- **Sorting Toggle**: Left-click to switch between `Highest Count` $\rightarrow$ `Lowest Count` $\rightarrow$ `Nearest` (sorts by Euclidean distance in the current world, followed by other dimensions).
+- Filters can be combined arbitrarily and persist across manual re-scans.
+- Left-click any chunk entry to teleport directly to the densest entity cluster within that chunk.
+
+### 3. Exempting Specific Entities from AI Pausing
+
+1. Use a Name Tag to name the entity with a title containing the keyword `保留` (or your custom keyword configured in `protection.name-keyword`, e.g., `保留-IronFarm`).
+2. The entity will resume full AI activity on the subsequent scan cycle and will be ignored by future pause sweeps.
+
+### 4. Troubleshooting Entity States
+
+1. Target the mob with your crosshairs (within 16 blocks; works through transparent blocks like glass).
+2. Execute:
+
+```bash
+/tickb inspect
+```
+
+- If the diagnostic verdict differs from the current live state, it will reconcile on the next scheduled scan cycle (default: every 5 seconds).
+- This inspection block can be copied and pasted directly when submitting issue reports.
+
+### 5. Safe Plugin Uninstallation
+
+```bash
+/tickb ai restore
+```
+
+- Loaded entities are automatically restored upon graceful server shutdown. If `ai-pause.enabled` is toggled off later, entities residing in unloaded chunks will safely restore their AI as their chunks load back into memory.
+
+---
+
+## Configuration Reference
+
+| Key | Description |
+|---|---|
+| `inspect.min-op-level` / `max-distance` | Minimum OP level required for `/tickb inspect` and maximum raycast distance |
+| `hotspots.min-op-level` | Minimum OP level required to open the Hotspot GUI (`0` to disable OP check) |
+| `protection.name-keyword` | Substring keyword in custom names that exempts mobs from despawn fixes and AI pausing |
+| `despawn-fix.block-enderman-pickup` | Disables Endermen from picking up world blocks |
+| `despawn-fix.worlds` / `ai-pause.worlds` | Target worlds where features apply (empty list `[]` applies to all worlds) |
+| `spike-detector.spike-threshold-ms` | Minimum tick duration (in milliseconds) to register as a lag spike |
+| `spike-detector.reports.max-files` / `max-total-mb` | File count and cumulative disk space limit for local report archives |
+| `load-shedding.levels` | Dynamic tiers defining MSPT triggers and target simulation/view distances |
+| `ai-pause.crowd.pause-at` / `resume-at` | Same-type mob count threshold required to pause and subsequently resume AI |
+| `ai-pause.wake.villager-work-windows` | In-game time windows (ticks) during which villagers wake up to restock trades |
+| `ai-pause.wake.villager-threat-radius` | Radial distance in blocks to detect hostiles and wake villagers to flee (`0` to disable) |
+| `ai-pause.hostile-target-radius` | Trapped hostiles remain active if a target is within this range (`0` to keep trapped hostiles always active) |
+| `ai-pause.excluded-types` | Explicit list of entity types permanently exempt from AI pausing |
