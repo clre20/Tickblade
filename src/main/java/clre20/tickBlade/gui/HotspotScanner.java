@@ -79,7 +79,9 @@ public final class HotspotScanner {
     private List<Entry> result = Collections.emptyList();
     private long scannedAt;
     private boolean scanning;
-    private final Set<UUID> waiters = new LinkedHashSet<>();
+    /** 等待掃描完成的玩家與他們選的分類、排序（掃描期間才有資料，掃完清空） */
+    private final Map<UUID, HotspotMenu.Mode[]> waiters = new java.util.LinkedHashMap<>();
+    private final Map<UUID, HotspotMenu.Sort> waiterSort = new HashMap<>();
     private BukkitTask task;
 
     public HotspotScanner(TickBlade plugin) {
@@ -96,19 +98,26 @@ public final class HotspotScanner {
 
     /** 開介面：有快取就直接開，否則掃描完再開 */
     public void open(Player p, boolean forceRescan) {
+        open(p, forceRescan, HotspotMenu.Mode.ENTITIES, HotspotMenu.Sort.MOST);
+    }
+
+    /** 保留目前的分類與排序（重新掃描用） */
+    public void open(Player p, boolean forceRescan, HotspotMenu.Mode mode, HotspotMenu.Sort sort) {
         long age = System.currentTimeMillis() - scannedAt;
         // 連點「重新掃描」時，至少間隔 5 秒才真的重掃
         if (forceRescan && scannedAt != 0 && age < 5000) forceRescan = false;
         if (!forceRescan && scannedAt != 0 && (age < plugin.settings().hotspotCacheSeconds * 1000L || age < 5000)) {
-            HotspotMenu.open(plugin, p, HotspotMenu.Mode.ENTITIES, 0);
+            HotspotMenu.open(plugin, p, mode, sort, 0);
             return;
         }
         if (scanning) {
-            waiters.add(p.getUniqueId());
+            waiters.put(p.getUniqueId(), new HotspotMenu.Mode[]{mode});
+            waiterSort.put(p.getUniqueId(), sort);
             plugin.messages().send(p, "hotspots.busy");
             return;
         }
-        waiters.add(p.getUniqueId());
+        waiters.put(p.getUniqueId(), new HotspotMenu.Mode[]{mode});
+        waiterSort.put(p.getUniqueId(), sort);
         plugin.messages().send(p, "hotspots.scanning");
         startScan();
     }
@@ -165,13 +174,15 @@ public final class HotspotScanner {
         result = Collections.unmodifiableList(all);
         scannedAt = System.currentTimeMillis();
         scanning = false;
-        List<UUID> list = new ArrayList<>(waiters);
+        Map<UUID, HotspotMenu.Mode[]> modes = new java.util.LinkedHashMap<>(waiters);
+        Map<UUID, HotspotMenu.Sort> sorts = new HashMap<>(waiterSort);
         waiters.clear();
-        for (UUID id : list) {
+        waiterSort.clear();
+        for (UUID id : modes.keySet()) {
             Player p = plugin.getServer().getPlayer(id);
             if (p != null && p.hasPermission(clre20.tickBlade.TickBlade.PERM_HOTSPOTS)
                     && clre20.tickBlade.util.OpLevel.atLeast(p, plugin.settings().hotspotMinOpLevel)) {
-                HotspotMenu.open(plugin, p, HotspotMenu.Mode.ENTITIES, 0);
+                HotspotMenu.open(plugin, p, modes.get(id)[0], sorts.getOrDefault(id, HotspotMenu.Sort.MOST), 0);
             }
         }
     }
@@ -185,6 +196,7 @@ public final class HotspotScanner {
         task = null;
         scanning = false;
         waiters.clear();
+        waiterSort.clear();
         result = Collections.emptyList();
     }
 }

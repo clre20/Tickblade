@@ -29,24 +29,31 @@ import java.util.Map;
  */
 public final class HotspotMenu implements InventoryHolder {
 
+    /** 分類：要看哪一種數量 */
     public enum Mode { ENTITIES, TILES, HOPPERS }
+
+    /** 排序：多到少、少到多、離自己最近 */
+    public enum Sort { MOST, LEAST, NEAREST }
 
     static final int PER_PAGE = 45;
     static final int SLOT_PREV = 45;
     static final int SLOT_MODE = 47;
+    static final int SLOT_SORT = 48;
     static final int SLOT_REFRESH = 49;
     static final int SLOT_CLOSE = 51;
     static final int SLOT_NEXT = 53;
 
     private final TickBlade plugin;
     private final Mode mode;
+    private final Sort sort;
     private final int page;
     private final List<HotspotScanner.Entry> entries;
     private Inventory inventory;
 
-    private HotspotMenu(TickBlade plugin, Mode mode, int page, List<HotspotScanner.Entry> entries) {
+    private HotspotMenu(TickBlade plugin, Mode mode, Sort sort, int page, List<HotspotScanner.Entry> entries) {
         this.plugin = plugin;
         this.mode = mode;
+        this.sort = sort;
         this.page = page;
         this.entries = entries;
     }
@@ -61,18 +68,33 @@ public final class HotspotMenu implements InventoryHolder {
         return inventory;
     }
 
-    public static void open(TickBlade plugin, Player p, Mode mode, int page) {
+    public static void open(TickBlade plugin, Player p, Mode mode, Sort sort, int page) {
         List<HotspotScanner.Entry> list = new ArrayList<>();
         for (HotspotScanner.Entry e : plugin.hotspots().result()) {
             if (value(e, mode) > 0) list.add(e);
         }
-        list.sort(Comparator.comparingInt((HotspotScanner.Entry e) -> value(e, mode)).reversed());
+        Comparator<HotspotScanner.Entry> byCount = Comparator.comparingInt(e -> value(e, mode));
+        switch (sort) {
+            case MOST -> list.sort(byCount.reversed());
+            case LEAST -> list.sort(byCount);
+            case NEAREST -> {
+                // 同世界依距離由近到遠，其他世界排在後面（依世界名稱、數量多到少）
+                String world = p.getWorld().getName();
+                double px = p.getX();
+                double pz = p.getZ();
+                list.sort(Comparator.<HotspotScanner.Entry>comparingInt(e -> e.world.equals(world) ? 0 : 1)
+                        .thenComparingDouble(e -> e.world.equals(world) ? dist2(e, px, pz) : 0)
+                        .thenComparing(e -> e.world)
+                        .thenComparing(byCount.reversed()));
+            }
+        }
         int pages = Math.max(1, (list.size() + PER_PAGE - 1) / PER_PAGE);
         page = Math.max(0, Math.min(page, pages - 1));
 
         Messages m = plugin.messages();
-        HotspotMenu menu = new HotspotMenu(plugin, mode, page, list);
-        Component title = m.component("hotspots.title", "mode", m.raw(modeKey(mode)), "page", page + 1, "pages", pages);
+        HotspotMenu menu = new HotspotMenu(plugin, mode, sort, page, list);
+        Component title = m.component("hotspots.menu-title", "mode", m.raw(modeKey(mode)), "sort", m.raw(sortKey(sort)),
+                "page", page + 1, "pages", pages);
         Inventory inv = plugin.getServer().createInventory(menu, 54, title);
         menu.inventory = inv;
 
@@ -83,8 +105,10 @@ public final class HotspotMenu implements InventoryHolder {
         if (list.isEmpty()) inv.setItem(22, item(plugin, Material.BARRIER, m.component("hotspots.empty"), List.of()));
         if (page > 0) inv.setItem(SLOT_PREV, item(plugin, Material.ARROW, m.component("hotspots.prev"), List.of()));
         if (page < pages - 1) inv.setItem(SLOT_NEXT, item(plugin, Material.ARROW, m.component("hotspots.next"), List.of()));
-        inv.setItem(SLOT_MODE, item(plugin, icon(mode), m.component("hotspots.mode-button", "mode", m.raw(modeKey(mode))),
-                m.components("hotspots.mode-button-lore")));
+        inv.setItem(SLOT_MODE, item(plugin, icon(mode), m.component("hotspots.category-button", "mode", m.raw(modeKey(mode))),
+                m.components("hotspots.category-button-lore")));
+        inv.setItem(SLOT_SORT, item(plugin, Material.COMPARATOR, m.component("hotspots.sort-button", "sort", m.raw(sortKey(sort))),
+                m.components("hotspots.sort-button-lore")));
         String time = new SimpleDateFormat("HH:mm:ss").format(new Date(plugin.hotspots().scannedAt()));
         inv.setItem(SLOT_REFRESH, item(plugin, Material.CLOCK, m.component("hotspots.refresh"),
                 m.components("hotspots.refresh-lore", "time", time)));
@@ -100,12 +124,13 @@ public final class HotspotMenu implements InventoryHolder {
             return;
         }
         switch (slot) {
-            case SLOT_PREV -> open(plugin, p, mode, page - 1);
-            case SLOT_NEXT -> open(plugin, p, mode, page + 1);
-            case SLOT_MODE -> open(plugin, p, Mode.values()[(mode.ordinal() + 1) % Mode.values().length], 0);
+            case SLOT_PREV -> open(plugin, p, mode, sort, page - 1);
+            case SLOT_NEXT -> open(plugin, p, mode, sort, page + 1);
+            case SLOT_MODE -> open(plugin, p, Mode.values()[(mode.ordinal() + 1) % Mode.values().length], sort, 0);
+            case SLOT_SORT -> open(plugin, p, mode, Sort.values()[(sort.ordinal() + 1) % Sort.values().length], 0);
             case SLOT_REFRESH -> {
                 p.closeInventory();
-                plugin.hotspots().open(p, true);
+                plugin.hotspots().open(p, true, mode, sort);
             }
             case SLOT_CLOSE -> p.closeInventory();
             default -> {
@@ -146,6 +171,20 @@ public final class HotspotMenu implements InventoryHolder {
             case ENTITIES -> e.entities;
             case TILES -> e.tiles;
             case HOPPERS -> e.hoppers;
+        };
+    }
+
+    private static double dist2(HotspotScanner.Entry e, double px, double pz) {
+        double dx = (e.cx << 4) + 8 - px;
+        double dz = (e.cz << 4) + 8 - pz;
+        return dx * dx + dz * dz;
+    }
+
+    private static String sortKey(Sort sort) {
+        return switch (sort) {
+            case MOST -> "hotspots.sort-most";
+            case LEAST -> "hotspots.sort-least";
+            case NEAREST -> "hotspots.sort-nearest";
         };
     }
 

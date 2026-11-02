@@ -84,7 +84,7 @@ cleanup:
 hotspots:
   scanning: "&7正在掃描已載入的區塊…"
   busy: "&e正在掃描中，請稍候。"
-  title: "&8熱點區塊（{mode}）第 {page}/{pages} 頁"
+  menu-title: "&8熱點區塊（{mode}・{sort}）{page}/{pages}"
   mode-entities: "實體"
   mode-tiles: "方塊實體"
   mode-hoppers: "漏斗"
@@ -101,9 +101,15 @@ hotspots:
   type-none: "&8 - 無"
   prev: "&e上一頁"
   next: "&e下一頁"
-  mode-button: "&b排序：{mode}"
-  mode-button-lore:
+  category-button: "&b分類：{mode}"
+  category-button-lore:
     - "&7左鍵切換：實體 → 方塊實體 → 漏斗"
+  sort-button: "&b排序：{sort}"
+  sort-button-lore:
+    - "&7左鍵切換：數量多到少 → 數量少到多 → 離我最近"
+  sort-most: "多到少"
+  sort-least: "少到多"
+  sort-nearest: "離我最近"
   refresh: "&a重新掃描"
   refresh-lore:
     - "&7掃描時間：{time}"
