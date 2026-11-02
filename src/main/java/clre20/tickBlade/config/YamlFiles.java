@@ -51,16 +51,27 @@ public final class YamlFiles {
                 break;
             }
         }
+        // 舊版留下、預設檔已沒有的項目也要清掉
+        if (!missing) {
+            for (String key : user.getKeys(true)) {
+                if (!user.isConfigurationSection(key) && !defaults.contains(key)) {
+                    missing = true;
+                    break;
+                }
+            }
+        }
         if (!missing && user.getInt(versionKey, -1) == defaults.getInt(versionKey, -1)) {
             user.setDefaults(defaults);
             return new Loaded(user, null, false);
         }
 
-        // 以預設檔（含註解）為底，填回使用者原本的值
+        // 以預設檔（含註解）為底，填回使用者原本的值；預設檔已沒有的項目移除
         YamlConfiguration merged = loadDefaults(plugin, name);
         for (String key : user.getKeys(true)) {
             if (user.isConfigurationSection(key)) continue;
             if (key.equals(versionKey)) continue;
+            // 預設檔已沒有的項目（舊版留下的）不保留
+            if (!defaults.contains(key) || defaults.isConfigurationSection(key)) continue;
             merged.set(key, user.get(key));
         }
         try {
