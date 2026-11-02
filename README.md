@@ -136,18 +136,3 @@
 | `ai-pause.wake.villager-threat-radius` | 附近幾格內有威脅時喚醒村民（0 = 關閉） |
 | `ai-pause.hostile-target-radius` | 被困住的敵對生物，幾格內有可攻擊目標就不暫停（0 = 被困住的敵對生物一律不暫停） |
 | `ai-pause.excluded-types` | 永遠不暫停的生物種類 |
-
-## 可自訂的訊息鍵
-
-| 鍵 | 說明 |
-|---|---|
-| `common.*` | 權限不足、重載結果等共用訊息 |
-| `help.*` | 指令說明 |
-| `version.*` | 版本檢查結果與登入提醒 |
-| `status.*` | `/tickb status` 的每一行 |
-| `spike.*` | 自動錄製、報告存檔、錄製失敗 |
-| `reports.*` | `/tickb reports` 列表 |
-| `shedding.*` | 降載等級變化通知 |
-| `hotspots.*` | 熱點區塊介面的標題、物品名稱與說明 |
-| `inspect.*` | `/tickb inspect` 的每一行與各種原因 |
-| `console.*` | 後台紀錄 |
