@@ -82,7 +82,7 @@ public final class Settings {
     public final int crowdPauseAt;
     public final int crowdResumeAt;
     public final boolean aiConfined;
-    public final boolean confinedSkipHostile;
+    public final double hostileTargetRadius;
     public final double golemFarmRadius;
     public final double villagerThreatRadius;
     public final boolean aiSkipTamed;
@@ -149,7 +149,7 @@ public final class Settings {
         crowdPauseAt = pauseAt;
         crowdResumeAt = clamp(c.getInt("ai-pause.crowd.resume-at", 3), 1, pauseAt - 1);
         aiConfined = c.getBoolean("ai-pause.confined", true);
-        confinedSkipHostile = c.getBoolean("ai-pause.confined-skip-hostile", true);
+        hostileTargetRadius = clamp(c.getDouble("ai-pause.hostile-target-radius", 16), 0, 64);
         golemFarmRadius = clamp(c.getDouble("ai-pause.golem-farm-radius", 10), 0, 32);
         villagerThreatRadius = clamp(c.getDouble("ai-pause.wake.villager-threat-radius", 12), 0, 32);
         aiSkipTamed = c.getBoolean("ai-pause.skip-tamed", true);

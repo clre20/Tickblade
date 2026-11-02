@@ -7,7 +7,10 @@ import clre20.tickBlade.util.Protection;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Animals;
+import org.bukkit.GameMode;
+import org.bukkit.entity.AbstractVillager;
 import org.bukkit.entity.Enemy;
+import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
@@ -173,7 +176,7 @@ public final class AiPauser implements Listener {
                 curCrowd++;
                 return;
             }
-            if (confinedPausable(mob, s) && Confinement.isConfined(mob) && !golemFarm(mob, snap, s)) {
+            if (confinedPausable(mob, s, snap) && Confinement.isConfined(mob) && !golemFarm(mob, snap, s)) {
                 pause(mob, pdc, REASON_CONFINED);
                 curConfined++;
             }
@@ -190,7 +193,7 @@ public final class AiPauser implements Listener {
             countReason(crowd >= s.crowdPauseAt ? REASON_CROWD : reason, pdc);
             return;
         }
-        if (confinedPausable(mob, s) && Confinement.isConfined(mob) && !golemFarm(mob, snap, s)) {
+        if (confinedPausable(mob, s, snap) && Confinement.isConfined(mob) && !golemFarm(mob, snap, s)) {
             countReason(REASON_CONFINED, pdc);
             return;
         }
@@ -245,12 +248,14 @@ public final class AiPauser implements Listener {
     }
 
     /**
-     * 被關住也可以暫停的生物。敵對生物（殭屍、骷髏、史萊姆、幻翼…）被困住時仍要能攻擊靠近的玩家，
-     * 所以只會因為「擁擠」被暫停。
+     * 被關住時可以暫停嗎。敵對生物（殭屍、骷髏、史萊姆、幻翼…）附近有可攻擊的目標
+     * （生存／冒險模式玩家、村民、鐵傀儡）時不暫停，才能攻擊；沒有目標就暫停。
      */
-    private static boolean confinedPausable(Mob mob, Settings s) {
+    private static boolean confinedPausable(Mob mob, Settings s, WorldSnapshot snap) {
         if (!s.aiConfined) return false;
-        return !(s.confinedSkipHostile && mob instanceof Enemy);
+        if (!(mob instanceof Enemy)) return true;
+        if (s.hostileTargetRadius <= 0) return false; // 0 = 被困住的敵對生物一律不暫停
+        return !snap.targetWithin(mob.getX(), mob.getY(), mob.getZ(), s.hostileTargetRadius);
     }
 
     /** 鐵傀儡農場：被關住的村民附近有殭屍類生物 */
@@ -394,8 +399,12 @@ public final class AiPauser implements Listener {
         final double[] zx;
         final double[] zy;
         final double[] zz;
+        /** 敵對生物可以攻擊的目標：生存／冒險模式玩家、村民、鐵傀儡 */
+        final double[] tx;
+        final double[] ty;
+        final double[] tz;
 
-        private WorldSnapshot(World world, int n, int zn, double cell) {
+        private WorldSnapshot(World world, int n, int zn, int tn, double cell) {
             this.world = world;
             this.ids = new UUID[n];
             this.x = new double[n];
@@ -406,14 +415,34 @@ public final class AiPauser implements Listener {
             this.zx = new double[zn];
             this.zy = new double[zn];
             this.zz = new double[zn];
+            this.tx = new double[tn];
+            this.ty = new double[tn];
+            this.tz = new double[tn];
         }
 
         static WorldSnapshot take(World w, double radius) {
             List<Mob> mobs = new ArrayList<>(w.getEntitiesByClass(Mob.class));
             int zn = 0;
-            for (Mob m : mobs) if (isVillagerThreat(m)) zn++;
-            WorldSnapshot s = new WorldSnapshot(w, mobs.size(), zn, Math.max(1.0, radius));
+            int tn = 0;
+            for (Mob m : mobs) {
+                if (isVillagerThreat(m)) zn++;
+                if (isHostileTarget(m)) tn++;
+            }
+            List<Player> players = new ArrayList<>();
+            for (Player p : w.getPlayers()) {
+                GameMode gm = p.getGameMode();
+                if (!p.isDead() && (gm == GameMode.SURVIVAL || gm == GameMode.ADVENTURE)) players.add(p);
+            }
+            tn += players.size();
+            WorldSnapshot s = new WorldSnapshot(w, mobs.size(), zn, tn, Math.max(1.0, radius));
             int zi = 0;
+            int ti = 0;
+            for (Player p : players) {
+                s.tx[ti] = p.getX();
+                s.ty[ti] = p.getY();
+                s.tz[ti] = p.getZ();
+                ti++;
+            }
             for (int i = 0; i < mobs.size(); i++) {
                 Mob m = mobs.get(i);
                 s.ids[i] = m.getUniqueId();
@@ -422,6 +451,12 @@ public final class AiPauser implements Listener {
                 s.z[i] = m.getZ();
                 s.type[i] = m.getType().ordinal();
                 s.add(i);
+                if (isHostileTarget(m)) {
+                    s.tx[ti] = s.x[i];
+                    s.ty[ti] = s.y[i];
+                    s.tz[ti] = s.z[i];
+                    ti++;
+                }
                 if (isVillagerThreat(m)) {
                     s.zx[zi] = s.x[i];
                     s.zy[zi] = s.y[i];
@@ -430,6 +465,21 @@ public final class AiPauser implements Listener {
                 }
             }
             return s;
+        }
+
+        private static boolean isHostileTarget(LivingEntity m) {
+            return m instanceof AbstractVillager || m instanceof IronGolem;
+        }
+
+        boolean targetWithin(double px, double py, double pz, double radius) {
+            double r2 = radius * radius;
+            for (int k = 0; k < tx.length; k++) {
+                double dx = tx[k] - px;
+                double dy = ty[k] - py;
+                double dz = tz[k] - pz;
+                if (dx * dx + dy * dy + dz * dz <= r2) return true;
+            }
+            return false;
         }
 
         /** 村民會害怕的生物：殭屍類（含屍殼、沉屍、殭屍村民）、豬屍獸、掠奪者類（女巫除外）、惱鬼 */
