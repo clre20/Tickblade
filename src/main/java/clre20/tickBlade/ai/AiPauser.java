@@ -239,7 +239,18 @@ public final class AiPauser implements Listener {
         if (s.wakeShearedSheep && mob instanceof Sheep sh && sh.isSheared() && sh.isAdult()) return new Why("sheared");
         if (mob instanceof Villager v) {
             if (v.isTrading()) return new Why("trading");
-            if (v.isSleeping()) return new Why("sleeping");
+            // 白天還躺在床上（例如半夜被暫停、沒有工作時段的傻子／無業村民）：喚醒讓它起床
+            if (v.isSleeping()) {
+                long t = mob.getWorld().getTime();
+                if (t < 12000) return new Why("wake-up");
+            }
+            // 睡覺時間開始時喚醒，讓村民走到床上；躺下後可以再暫停，白天會被叫醒起床
+            if (v.isAdult() && !v.isSleeping()) {
+                long time = mob.getWorld().getTime();
+                for (Settings.TimeWindow win : s.villagerSleepWindows) {
+                    if (win.contains(time)) return new Why("sleep-window", "from", win.from(), "to", win.to());
+                }
+            }
             // 附近有殭屍、掠奪者等威脅：要有 AI 才會逃跑（被關住的村民跑不掉，交給鐵傀儡農場規則判斷）
             if (s.villagerThreatRadius > 0
                     && near.threatWithin(mob.getX(), mob.getY(), mob.getZ(), s.villagerThreatRadius)
