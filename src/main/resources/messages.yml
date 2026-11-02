@@ -76,6 +76,7 @@ shedding:
   unchanged: "不變"
 
 ai:
+  usage: "&e用法：/{label} ai restore &7（恢復所有被暫停的生物 AI）"
   restored: "&a已恢復 {count} 隻生物的 AI。"
 
 cleanup:
