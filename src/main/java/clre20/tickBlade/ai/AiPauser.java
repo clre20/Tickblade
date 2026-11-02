@@ -7,6 +7,7 @@ import clre20.tickBlade.util.Protection;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Animals;
+import org.bukkit.entity.Enemy;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
@@ -172,7 +173,7 @@ public final class AiPauser implements Listener {
                 curCrowd++;
                 return;
             }
-            if (s.aiConfined && Confinement.isConfined(mob) && !golemFarm(mob, snap, s)) {
+            if (confinedPausable(mob, s) && Confinement.isConfined(mob) && !golemFarm(mob, snap, s)) {
                 pause(mob, pdc, REASON_CONFINED);
                 curConfined++;
             }
@@ -189,7 +190,7 @@ public final class AiPauser implements Listener {
             countReason(crowd >= s.crowdPauseAt ? REASON_CROWD : reason, pdc);
             return;
         }
-        if (s.aiConfined && Confinement.isConfined(mob) && !golemFarm(mob, snap, s)) {
+        if (confinedPausable(mob, s) && Confinement.isConfined(mob) && !golemFarm(mob, snap, s)) {
             countReason(REASON_CONFINED, pdc);
             return;
         }
@@ -241,6 +242,15 @@ public final class AiPauser implements Listener {
             }
         }
         return false;
+    }
+
+    /**
+     * 被關住也可以暫停的生物。敵對生物（殭屍、骷髏、史萊姆、幻翼…）被困住時仍要能攻擊靠近的玩家，
+     * 所以只會因為「擁擠」被暫停。
+     */
+    private static boolean confinedPausable(Mob mob, Settings s) {
+        if (!s.aiConfined) return false;
+        return !(s.confinedSkipHostile && mob instanceof Enemy);
     }
 
     /** 鐵傀儡農場：被關住的村民附近有殭屍類生物 */
