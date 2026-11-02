@@ -24,9 +24,9 @@
   - 負載恢復後一級一級還原成原本的距離，避免來回跳動
 - **擁擠／被關住的生物暫停 AI**：
   - 1.5 格內同類生物 ≥ 5 隻，或前後左右都走不過去時暫停；降到 3 隻以下且周圍有空間時恢復（都可設定）
-  - 「走不過去」會考慮生物身高，例如床上方只剩 1.5 格，身高將近 2 格的村民就過不去
+  - 「走不過去」會考慮生物身高，例如床上方只剩 1.5 格，身高將近 2 格的村民就過不去（這種床原版村民也睡不了）
   - 敵對生物（殭屍、骷髏、史萊姆等）被困住時，16 格內有可攻擊的目標（生存／冒險模式玩家、村民、鐵傀儡）就保持清醒、照常攻擊，沒有目標才暫停；擠在一起時一律暫停
-  - 需要 AI 時暫時喚醒，計算交給原版：村民在白天工作時段補貨、晚上睡覺時段走到床上、交易後升級；被剪過毛的羊吃草長回羊毛；進入繁殖狀態的動物；被任何生物攻擊時
+  - 需要 AI 時暫時喚醒，計算交給原版：村民在白天工作時段補貨、晚上有床的會被喚醒走到床上（每晚最多 60 秒）、交易後升級；被剪過毛的羊吃草長回羊毛；進入繁殖狀態的動物；被任何生物攻擊時
   - 沒被關住的村民，附近 12 格內有殭屍、掠奪者等威脅時會醒來逃跑
   - 暫停期間村民照常可以交易；右鍵點擊被暫停的村民會喚醒 10 秒
   - 沒有職業的村民：能走動的不暫停（才會去找工作站）；被困住的會暫停，玩家在附近放下工作站方塊時喚醒 60 秒去認領職業
@@ -134,7 +134,7 @@
 | `load-shedding.levels` | 降載等級：MSPT 門檻與要降到的模擬距離／視距 |
 | `ai-pause.crowd.pause-at` / `resume-at` | 暫停與恢復的同類生物數量 |
 | `ai-pause.wake.villager-work-windows` | 村民補貨的喚醒時段（遊戲時間） |
-| `ai-pause.wake.villager-sleep-windows` | 村民走到床上的喚醒時段（遊戲時間） |
+| `ai-pause.wake.villager-bedtime-windows` / `villager-bedtime-max-seconds` | 有床的村民晚上被喚醒走到床上的時段，以及每晚最多喚醒幾秒 |
 | `ai-pause.wake.villager-threat-radius` | 附近幾格內有威脅時喚醒村民（0 = 關閉） |
 | `ai-pause.hostile-target-radius` | 被困住的敵對生物，幾格內有可攻擊目標就不暫停（0 = 被困住的敵對生物一律不暫停） |
 | `ai-pause.excluded-types` | 永遠不暫停的生物種類 |
@@ -171,10 +171,10 @@ Compatible with Paper 1.21.11 and 26.1.x–26.3 (Paper forks such as Purpur shou
 
 - **AI Pausing for Crowded & Trapped Mobs**:
   - Pauses a mob's AI when 5 or more mobs of the same type are within 1.5 blocks, or when it cannot step into any of the four neighbouring blocks. Resumes when the count drops to 3 or fewer and the mob has room to move (all thresholds configurable).
-  - "Cannot step into" takes the mob's height into account, e.g. a villager (almost 2 blocks tall) cannot walk onto a bed that has only 1.5 blocks of space above it.
+  - "Cannot step into" takes the mob's height into account, e.g. a villager (almost 2 blocks tall) cannot walk onto a bed that has only 1.5 blocks of space above it (vanilla villagers cannot sleep in such a bed either).
   - **Hostile mobs**: trapped hostiles (Zombies, Skeletons, Slimes, etc.) stay active while an attackable target (Survival/Adventure player, Villager, Iron Golem) is within 16 blocks, and pause only when no target is in range. Crowded hostiles always pause.
   - **Temporary wake-ups for vanilla mechanics**: whenever AI is needed, the mob is woken up and vanilla does the work:
-    - Villagers during work hours (restocking), at bedtime (walking to their bed), and after trading (levelling up).
+    - Villagers during work hours (restocking), at night if they own a bed (walking to it, up to 60 seconds per night), and after trading (levelling up).
     - Sheared sheep, so they can eat grass and regrow wool.
     - Animals in love mode (breeding).
     - Any mob that is attacked by another entity.
@@ -287,7 +287,7 @@ Base command: `/tickblade` (alias: `/tickb`).
 | `load-shedding.levels` | Load-shedding tiers: MSPT threshold and the simulation/view distance to drop to |
 | `ai-pause.crowd.pause-at` / `resume-at` | Same-type mob count to pause at and to resume at |
 | `ai-pause.wake.villager-work-windows` | In-game time windows when villagers wake up to restock |
-| `ai-pause.wake.villager-sleep-windows` | In-game time windows when villagers wake up to walk to their bed |
+| `ai-pause.wake.villager-bedtime-windows` / `villager-bedtime-max-seconds` | Night-time windows when villagers that own a bed wake up to walk to it, and the maximum seconds per night |
 | `ai-pause.wake.villager-threat-radius` | Range in blocks within which a threat wakes villagers so they can flee (`0` = off) |
 | `ai-pause.hostile-target-radius` | Trapped hostiles stay active if a target is within this range (`0` = trapped hostiles are never paused) |
 | `ai-pause.excluded-types` | Mob types that are never paused |
