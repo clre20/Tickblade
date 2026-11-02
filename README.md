@@ -32,6 +32,11 @@
   - 自動辨識鐵傀儡農場（被關住的村民附近有殭屍類生物就不暫停）
   - 生物名字含有「保留」（可設定）就不會被暫停
   - 暫停狀態存在生物身上，關閉功能、關服或執行 `/tickb ai restore` 都會完整恢復
+- **查看單隻生物的判斷**：
+  - 看著一隻生物執行 `/tickb inspect`（可隔著玻璃、圍欄），顯示 AI 是否被暫停、原因、1.5 格內同類數量、是否被困住
+  - 列出保持清醒或不會暫停的原因（例如工作時段、附近有威脅、鐵傀儡農場、名字含「保留」、其他插件的生物）
+  - 顯示消失判斷：會不會被處理，不會的話卡在哪一條規則
+  - 只讀取不改變任何狀態；判斷規則與實際掃描完全相同
 - **其他**：
   - 所有文字都在 `messages.yml`，預設繁體中文
   - `config.yml`、`messages.yml` 缺少的項目會在啟動與重載時自動補回，保留原本的值
@@ -46,6 +51,7 @@
 | `/tickb help` | 列出自己有權限的指令 | 玩家、主控台 | `tickblade.help` | OP |
 | `/tickb status` | 平均 MSPT、降載等級、AI 暫停數量、消失判斷與卡頓統計 | 玩家、主控台 | `tickblade.status` | OP |
 | `/tickb hotspots` | 開啟熱點區塊介面（另需 OP 等級 2 以上） | 玩家 | `tickblade.hotspots` | OP |
+| `/tickb inspect` | 看著一隻生物，查看 TickBlade 對它的判斷（另需 OP 等級 2 以上） | 玩家 | `tickblade.inspect` | OP |
 | `/tickb reports` | 列出已存檔的 spark 報告 | 玩家、主控台 | `tickblade.reports` | OP |
 | `/tickb profile` | 立即錄製一份只含長 tick 的 spark 報告 | 玩家、主控台 | `tickblade.profile` | OP |
 | `/tickb cleanup` | 立即檢查所有已載入的怪物 | 玩家、主控台 | `tickblade.cleanup` | OP |
@@ -93,7 +99,19 @@
 1. 用命名牌把生物取名為含有「保留」的名字，例如「保留-鐵傀儡農場」
 2. 下一次掃描時就會恢復並不再暫停
 
-### 4. 移除插件前
+### 4. 查不出某隻生物為什麼被暫停／沒被暫停
+
+1. 看著那隻生物（16 格內，可以隔著玻璃）
+2. 執行：
+
+```bash
+/tickb inspect
+```
+
+- 判斷和目前狀態不一樣時，等下一次掃描（預設 5 秒）就會更新
+- 回報問題時可以直接貼上這段結果
+
+### 5. 移除插件前
 
 ```bash
 /tickb ai restore
@@ -105,6 +123,7 @@
 
 | 設定 | 說明 |
 |---|---|
+| `inspect.min-op-level` / `max-distance` | 使用 inspect 需要的 OP 等級、最遠查看距離 |
 | `hotspots.min-op-level` | 開啟熱點介面需要的 OP 等級（0 = 不檢查） |
 | `protection.name-keyword` | 名字含有這段文字的生物，消失判斷與暫停 AI 都不處理 |
 | `despawn-fix.block-enderman-pickup` | 阻止終界使者撿方塊 |
@@ -130,4 +149,5 @@
 | `reports.*` | `/tickb reports` 列表 |
 | `shedding.*` | 降載等級變化通知 |
 | `hotspots.*` | 熱點區塊介面的標題、物品名稱與說明 |
+| `inspect.*` | `/tickb inspect` 的每一行與各種原因 |
 | `console.*` | 後台紀錄 |

@@ -80,6 +80,13 @@ hotspots:
   # 掃描方塊實體時每 tick 處理幾個區塊
   chunks-per-tick: 150
 
+# 查看單隻生物的判斷（/tickb inspect，看著生物執行）
+inspect:
+  # 除了 tickblade.inspect 權限，還需要的 OP 等級（0 = 不檢查）
+  min-op-level: 2
+  # 最遠可以查看幾格外的生物
+  max-distance: 16
+
 # C. 自動降載：MSPT 過高時降低每位玩家的模擬距離／視距，恢復後還原
 load-shedding:
   enabled: true

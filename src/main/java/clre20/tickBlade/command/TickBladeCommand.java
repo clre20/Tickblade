@@ -33,6 +33,7 @@ public final class TickBladeCommand implements TabExecutor {
     static {
         SUBS.put("status", new String[]{TickBlade.PERM_STATUS, "status", "help.entries.status"});
         SUBS.put("hotspots", new String[]{TickBlade.PERM_HOTSPOTS, "hotspots", "help.entries.hotspots"});
+        SUBS.put("inspect", new String[]{TickBlade.PERM_INSPECT, "inspect", "help.entries.inspect"});
         SUBS.put("reports", new String[]{TickBlade.PERM_REPORTS, "reports", "help.entries.reports"});
         SUBS.put("profile", new String[]{TickBlade.PERM_PROFILE, "profile", "help.entries.profile"});
         SUBS.put("cleanup", new String[]{TickBlade.PERM_CLEANUP, "cleanup", "help.entries.cleanup"});
@@ -81,6 +82,18 @@ public final class TickBladeCommand implements TabExecutor {
                     return true;
                 }
                 plugin.hotspots().open(p, false);
+            }
+            case "inspect" -> {
+                if (!(sender instanceof Player p)) {
+                    m.send(sender, "common.player-only");
+                    return true;
+                }
+                int need = plugin.settings().inspectMinOpLevel;
+                if (!OpLevel.atLeast(p, need)) {
+                    m.send(sender, "common.op-level-required", "level", need);
+                    return true;
+                }
+                Inspector.inspect(plugin, p);
             }
             case "reports" -> reports(sender);
             case "profile" -> plugin.sparkCapture().startManual(sender);
@@ -232,8 +245,12 @@ public final class TickBladeCommand implements TabExecutor {
     /** 權限＋（熱點介面）OP 等級；主控台不能開介面，所以不列出 hotspots */
     private boolean canUse(CommandSender sender, String sub, String perm) {
         if (!sender.hasPermission(perm)) return false;
-        if (!sub.equals("hotspots")) return true;
-        return sender instanceof Player p && OpLevel.atLeast(p, plugin.settings().hotspotMinOpLevel);
+        int need;
+        if (sub.equals("hotspots")) need = plugin.settings().hotspotMinOpLevel;
+        else if (sub.equals("inspect")) need = plugin.settings().inspectMinOpLevel;
+        else return true;
+        // 這兩個只有玩家能用，主控台不列出
+        return sender instanceof Player p && OpLevel.atLeast(p, need);
     }
 
     @Override

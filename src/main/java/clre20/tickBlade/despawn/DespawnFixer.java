@@ -154,40 +154,51 @@ public final class DespawnFixer implements Listener {
         return !m.getRemoveWhenFarAway();
     }
 
-    private void process(Monster m) {
+    /**
+     * 判斷這隻怪物會不會被處理（巡邏與 /tickb inspect 共用同一套規則）。
+     * 回傳 null = 會處理；否則回傳 messages.yml inspect.despawn.* 的原因鍵。
+     */
+    public String check(Monster m) {
         Settings s = plugin.settings();
-        if (!s.despawnWorld(m.getWorld().getName())) return;
-        if (s.despawnExcluded.contains(m.getType())) return;
-        if (m.customName() != null) return;
-        if (m.isLeashed() || m.isInsideVehicle() || !m.getPassengers().isEmpty()) return;
-        if (m instanceof Raider r && (r.getRaid() != null || r.isPatrolLeader())) return;
-        if (Protection.isForeign(m, s)) return;
+        if (!s.despawnEnabled) return "disabled";
+        if (!s.despawnWorld(m.getWorld().getName())) return "world";
+        if (m instanceof Enderman em) {
+            if (em.getCarriedBlock() == null) return "normal";
+        } else {
+            if (m.getRemoveWhenFarAway()) return "normal";
+            if (!hasPickedItem(m)) return "other-persistent";
+        }
+        if (s.despawnExcluded.contains(m.getType())) return "excluded";
+        if (m.customName() != null) return "named";
+        if (m.isLeashed()) return "leashed";
+        if (m.isInsideVehicle() || !m.getPassengers().isEmpty()) return "vehicle";
+        if (m instanceof Raider r && (r.getRaid() != null || r.isPatrolLeader())) return "raid";
+        if (Protection.isForeign(m, s)) return "foreign";
+        if (s.despawnSkipConfined && Confinement.isConfined(m)) return "confined";
+        return null;
+    }
 
-        boolean changed = false;
+    /** 撿起來的物品掉落率會被設成「必定掉落」（> 1）；沒有就代表是其他原因不會消失（例如生怪蛋） */
+    private static boolean hasPickedItem(Monster m) {
+        EntityEquipment eq = m.getEquipment();
+        if (eq == null) return false;
+        for (EquipmentSlot slot : SLOTS) {
+            ItemStack it = eq.getItem(slot);
+            if (!it.isEmpty() && eq.getDropChance(slot) > 1.0f) return true;
+        }
+        return false;
+    }
+
+    private void process(Monster m) {
+        if (check(m) != null) return;
         if (m instanceof Enderman em) {
             BlockData data = em.getCarriedBlock();
-            if (data == null) return;
-            if (s.despawnSkipConfined && Confinement.isConfined(m)) return;
             Material mat = data.getPlacementMaterial();
             if (mat.isItem() && !mat.isAir()) drop(m, new ItemStack(mat));
             em.setCarriedBlock(null);
             droppedBlocks++;
-            changed = true;
         } else {
-            if (m.getRemoveWhenFarAway()) return;
             EntityEquipment eq = m.getEquipment();
-            if (eq == null) return;
-            // 撿起來的物品掉落率會被設成「必定掉落」（> 1）；沒有就代表是其他原因不會消失（例如生怪蛋），不處理
-            boolean picked = false;
-            for (EquipmentSlot slot : SLOTS) {
-                ItemStack it = eq.getItem(slot);
-                if (!it.isEmpty() && eq.getDropChance(slot) > 1.0f) {
-                    picked = true;
-                    break;
-                }
-            }
-            if (!picked) return;
-            if (s.despawnSkipConfined && Confinement.isConfined(m)) return;
             for (EquipmentSlot slot : SLOTS) {
                 ItemStack it = eq.getItem(slot);
                 if (it.isEmpty() || eq.getDropChance(slot) <= 1.0f) continue;
@@ -197,9 +208,8 @@ public final class DespawnFixer implements Listener {
                 droppedItems++;
             }
             m.setRemoveWhenFarAway(true);
-            changed = true;
         }
-        if (changed) fixed++;
+        fixed++;
     }
 
     private void drop(Mob m, ItemStack stack) {

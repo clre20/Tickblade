@@ -63,6 +63,8 @@ public final class Settings {
     public final int hotspotCacheSeconds;
     public final int hotspotChunksPerTick;
     public final int hotspotMinOpLevel;
+    public final int inspectMinOpLevel;
+    public final int inspectMaxDistance;
 
     // C
     public final boolean shedEnabled;
@@ -131,6 +133,8 @@ public final class Settings {
         hotspotCacheSeconds = clamp(c.getInt("hotspots.cache-seconds", 30), 0, 3600);
         hotspotChunksPerTick = clamp(c.getInt("hotspots.chunks-per-tick", 150), 10, 5000);
         hotspotMinOpLevel = clamp(c.getInt("hotspots.min-op-level", 2), 0, 4);
+        inspectMinOpLevel = clamp(c.getInt("inspect.min-op-level", 2), 0, 4);
+        inspectMaxDistance = clamp(c.getInt("inspect.max-distance", 16), 1, 64);
 
         shedEnabled = c.getBoolean("load-shedding.enabled", true);
         shedAverageSeconds = clamp(c.getInt("load-shedding.average-seconds", 10), 1, 60);

@@ -165,18 +165,18 @@ public final class AiPauser implements Listener {
         }
         if (!paused && !mob.isAware()) return; // 別人關掉的 AI，不碰
 
-        boolean eligible = eligible(mob, s);
-        boolean wake = eligible && needsAi(mob, s, snap);
+        Why inel = ineligible(mob, s);
+        Why wake = inel == null ? wakeReason(mob, s, snap) : null;
         int crowd = snap.countSameType(i, s.crowdRadius);
 
         if (!paused) {
-            if (!eligible || wake) return;
+            if (inel != null || wake != null) return;
             if (crowd >= s.crowdPauseAt) {
                 pause(mob, pdc, REASON_CROWD);
                 curCrowd++;
                 return;
             }
-            if (confinedPausable(mob, s, snap) && Confinement.isConfined(mob) && !golemFarm(mob, snap, s)) {
+            if (s.aiConfined && Confinement.isConfined(mob) && confinedHold(mob, s, snap) == null) {
                 pause(mob, pdc, REASON_CONFINED);
                 curConfined++;
             }
@@ -184,7 +184,7 @@ public final class AiPauser implements Listener {
         }
 
         // 已暫停：判斷是否恢復
-        if (!eligible || wake) {
+        if (inel != null || wake != null) {
             resume(mob, pdc);
             return;
         }
@@ -193,7 +193,7 @@ public final class AiPauser implements Listener {
             countReason(crowd >= s.crowdPauseAt ? REASON_CROWD : reason, pdc);
             return;
         }
-        if (confinedPausable(mob, s, snap) && Confinement.isConfined(mob) && !golemFarm(mob, snap, s)) {
+        if (s.aiConfined && Confinement.isConfined(mob) && confinedHold(mob, s, snap) == null) {
             countReason(REASON_CONFINED, pdc);
             return;
         }
@@ -207,61 +207,165 @@ public final class AiPauser implements Listener {
         else curConfined++;
     }
 
-    /** 可以被暫停的生物 */
-    private boolean eligible(Mob mob, Settings s) {
-        if (s.aiExcluded.contains(mob.getType())) return false;
-        if (mob instanceof Player) return false;
-        if (mob.isLeashed()) return false;
-        if (s.aiSkipTamed && mob instanceof Tameable t && t.isTamed()) return false;
-        if (mob instanceof Raider r && r.getRaid() != null) return false;
-        if (mob.getTarget() instanceof Player) return false;
-        if (Protection.hasKeyword(mob, s)) return false;
-        return !Protection.isForeign(mob, s);
+    /** 判斷原因：messages.yml 的 inspect.why.<key>，附帶變數 */
+    public record Why(String key, Object... vars) {
     }
 
-    /** 這個時候需要 AI，交給原版計算 */
-    private boolean needsAi(Mob mob, Settings s, WorldSnapshot snap) {
+    /** 附近有沒有威脅／可攻擊目標；掃描用快照，inspect 用即時查詢 */
+    interface Nearby {
+        boolean threatWithin(double x, double y, double z, double radius);
+
+        boolean targetWithin(double x, double y, double z, double radius);
+    }
+
+    /** 不能被暫停的原因（null = 可以暫停） */
+    private Why ineligible(Mob mob, Settings s) {
+        if (s.aiExcluded.contains(mob.getType())) return new Why("excluded-type");
+        if (mob.isLeashed()) return new Why("leashed");
+        if (s.aiSkipTamed && mob instanceof Tameable t && t.isTamed()) return new Why("tamed");
+        if (mob instanceof Raider r && r.getRaid() != null) return new Why("raid");
+        if (mob.getTarget() instanceof Player) return new Why("targeting-player");
+        if (Protection.hasKeyword(mob, s)) return new Why("keyword", "keyword", s.nameKeyword);
+        if (Protection.isForeign(mob, s)) return new Why("foreign");
+        return null;
+    }
+
+    /** 這個時候需要 AI 的原因（null = 不需要），計算交給原版 */
+    private Why wakeReason(Mob mob, Settings s, Nearby near) {
         Long until = wakeUntil.get(mob.getUniqueId());
-        if (until != null && until > tick) return true;
-        if (s.wakeLoveMode && mob instanceof Animals a && a.isLoveMode()) return true;
-        if (s.wakeShearedSheep && mob instanceof Sheep sh && sh.isSheared() && sh.isAdult()) return true;
+        long now = plugin.getServer().getCurrentTick();
+        if (until != null && until > now) return new Why("woken", "seconds", (until - now + 19) / 20);
+        if (s.wakeLoveMode && mob instanceof Animals a && a.isLoveMode()) return new Why("love");
+        if (s.wakeShearedSheep && mob instanceof Sheep sh && sh.isSheared() && sh.isAdult()) return new Why("sheared");
         if (mob instanceof Villager v) {
-            if (v.isTrading() || v.isSleeping()) return true;
+            if (v.isTrading()) return new Why("trading");
+            if (v.isSleeping()) return new Why("sleeping");
             // 附近有殭屍、掠奪者等威脅：要有 AI 才會逃跑（被關住的村民跑不掉，交給鐵傀儡農場規則判斷）
             if (s.villagerThreatRadius > 0
-                    && snap.threatWithin(mob.getX(), mob.getY(), mob.getZ(), s.villagerThreatRadius)
-                    && !Confinement.isConfined(mob)) return true;
+                    && near.threatWithin(mob.getX(), mob.getY(), mob.getZ(), s.villagerThreatRadius)
+                    && !Confinement.isConfined(mob)) return new Why("threat", "radius", fmtR(s.villagerThreatRadius));
             if (v.isAdult()) {
                 Villager.Profession p = v.getProfession();
                 // 沒有職業、可以走動的村民要有 AI 才會去找工作站；被困住的可以暫停，
                 // 附近放下工作站方塊時再喚醒（onWorkstationPlace）
-                if (p == Villager.Profession.NONE) return !Confinement.isConfined(mob);
+                if (p == Villager.Profession.NONE) return Confinement.isConfined(mob) ? null : new Why("unemployed");
                 if (p != Villager.Profession.NITWIT && !s.villagerWindows.isEmpty()) {
                     long time = mob.getWorld().getTime();
                     for (Settings.TimeWindow win : s.villagerWindows) {
-                        if (win.contains(time)) return true;
+                        if (win.contains(time)) return new Why("work-window", "from", win.from(), "to", win.to());
                     }
                 }
             }
         }
-        return false;
+        return null;
     }
 
     /**
-     * 被關住時可以暫停嗎。敵對生物（殭屍、骷髏、史萊姆、幻翼…）附近有可攻擊的目標
-     * （生存／冒險模式玩家、村民、鐵傀儡）時不暫停，才能攻擊；沒有目標就暫停。
+     * 被關住但仍要保持清醒的原因（null = 被關住就可以暫停）：
+     * 敵對生物附近有可攻擊的目標（生存／冒險模式玩家、村民、鐵傀儡）才能攻擊；
+     * 鐵傀儡農場的村民附近有威脅。
      */
-    private static boolean confinedPausable(Mob mob, Settings s, WorldSnapshot snap) {
-        if (!s.aiConfined) return false;
-        if (!(mob instanceof Enemy)) return true;
-        if (s.hostileTargetRadius <= 0) return false; // 0 = 被困住的敵對生物一律不暫停
-        return !snap.targetWithin(mob.getX(), mob.getY(), mob.getZ(), s.hostileTargetRadius);
+    private static Why confinedHold(Mob mob, Settings s, Nearby near) {
+        if (mob instanceof Enemy) {
+            if (s.hostileTargetRadius <= 0) return new Why("hostile-no-limit");
+            if (near.targetWithin(mob.getX(), mob.getY(), mob.getZ(), s.hostileTargetRadius)) {
+                return new Why("hostile-target", "radius", fmtR(s.hostileTargetRadius));
+            }
+            return null;
+        }
+        if (mob instanceof Villager && s.golemFarmRadius > 0
+                && near.threatWithin(mob.getX(), mob.getY(), mob.getZ(), s.golemFarmRadius)) {
+            return new Why("golem-farm", "radius", fmtR(s.golemFarmRadius));
+        }
+        return null;
     }
 
-    /** 鐵傀儡農場：被關住的村民附近有殭屍類生物 */
-    private boolean golemFarm(Mob mob, WorldSnapshot snap, Settings s) {
-        if (!(mob instanceof Villager) || s.golemFarmRadius <= 0) return false;
-        return snap.threatWithin(mob.getX(), mob.getY(), mob.getZ(), s.golemFarmRadius);
+    private static String fmtR(double r) {
+        return r == Math.floor(r) ? String.valueOf((long) r) : String.valueOf(r);
+    }
+
+    // ---------- /tickb inspect ----------
+
+    /**
+     * 即時診斷一隻生物（不改變狀態）。
+     * state：disabled / other（別人關掉 AI）/ paused / awake
+     * verdict：ineligible / wake / pause-crowd / keep-crowd / pause-confined / hold / normal
+     */
+    public record Diagnosis(String state, Byte pausedReason, int crowd, boolean confined, String verdict, Why why) {
+    }
+
+    public Diagnosis diagnose(Mob mob) {
+        Settings s = plugin.settings();
+        Byte reason = mob.getPersistentDataContainer().get(pausedKey, PersistentDataType.BYTE);
+        int crowd = liveCrowd(mob, s.crowdRadius);
+        boolean confined = Confinement.isConfined(mob);
+        if (!s.aiEnabled || !s.aiWorld(mob.getWorld().getName())) {
+            return new Diagnosis("disabled", reason, crowd, confined, "normal", null);
+        }
+        String state = reason != null && !mob.isAware() ? "paused" : !mob.isAware() ? "other" : "awake";
+        if (state.equals("other")) return new Diagnosis(state, null, crowd, confined, "normal", null);
+        Why inel = ineligible(mob, s);
+        if (inel != null) return new Diagnosis(state, reason, crowd, confined, "ineligible", inel);
+        Nearby live = new LiveNearby(mob.getWorld());
+        Why wake = wakeReason(mob, s, live);
+        if (wake != null) return new Diagnosis(state, reason, crowd, confined, "wake", wake);
+        if (crowd >= s.crowdPauseAt) return new Diagnosis(state, reason, crowd, confined, "pause-crowd", null);
+        if (state.equals("paused") && crowd > s.crowdResumeAt) {
+            return new Diagnosis(state, reason, crowd, confined, "keep-crowd", null);
+        }
+        if (s.aiConfined && confined) {
+            Why hold = confinedHold(mob, s, live);
+            if (hold != null) return new Diagnosis(state, reason, crowd, confined, "hold", hold);
+            return new Diagnosis(state, reason, crowd, confined, "pause-confined", null);
+        }
+        return new Diagnosis(state, reason, crowd, confined, "normal", null);
+    }
+
+    private static int liveCrowd(Mob mob, double radius) {
+        double r2 = radius * radius;
+        int n = 0;
+        for (Entity e : mob.getNearbyEntities(radius, radius, radius)) {
+            if (e.getType() != mob.getType()) continue;
+            double dx = e.getX() - mob.getX();
+            double dy = e.getY() - mob.getY();
+            double dz = e.getZ() - mob.getZ();
+            if (dx * dx + dy * dy + dz * dz <= r2) n++;
+        }
+        return n + 1; // 含自己
+    }
+
+    /** inspect 用：即時查詢附近的實體 */
+    private static final class LiveNearby implements Nearby {
+        private final World world;
+
+        LiveNearby(World world) {
+            this.world = world;
+        }
+
+        @Override
+        public boolean threatWithin(double x, double y, double z, double radius) {
+            return any(x, y, z, radius, true);
+        }
+
+        @Override
+        public boolean targetWithin(double x, double y, double z, double radius) {
+            return any(x, y, z, radius, false);
+        }
+
+        private boolean any(double x, double y, double z, double radius, boolean threat) {
+            double r2 = radius * radius;
+            org.bukkit.Location loc = new org.bukkit.Location(world, x, y, z);
+            for (Entity e : world.getNearbyEntities(loc, radius, radius, radius)) {
+                if (!(e instanceof LivingEntity le)) continue;
+                boolean match = threat ? WorldSnapshot.isVillagerThreat(le) : WorldSnapshot.isHostileTarget(le);
+                if (!match) continue;
+                double dx = e.getX() - x;
+                double dy = e.getY() - y;
+                double dz = e.getZ() - z;
+                if (dx * dx + dy * dy + dz * dz <= r2) return true;
+            }
+            return false;
+        }
     }
 
     private void pause(Mob mob, PersistentDataContainer pdc, byte reason) {
@@ -387,7 +491,7 @@ public final class AiPauser implements Listener {
     // ---------- 快照 ----------
 
     /** 一個世界的生物位置快照；只存 UUID 與座標，不持有實體 */
-    static final class WorldSnapshot {
+    static final class WorldSnapshot implements Nearby {
         final World world; // 只在這一輪掃描期間持有
         final UUID[] ids;
         final double[] x;
@@ -467,11 +571,16 @@ public final class AiPauser implements Listener {
             return s;
         }
 
-        private static boolean isHostileTarget(LivingEntity m) {
+        static boolean isHostileTarget(LivingEntity m) {
+            if (m instanceof Player p) {
+                GameMode gm = p.getGameMode();
+                return !p.isDead() && (gm == GameMode.SURVIVAL || gm == GameMode.ADVENTURE);
+            }
             return m instanceof AbstractVillager || m instanceof IronGolem;
         }
 
-        boolean targetWithin(double px, double py, double pz, double radius) {
+        @Override
+        public boolean targetWithin(double px, double py, double pz, double radius) {
             double r2 = radius * radius;
             for (int k = 0; k < tx.length; k++) {
                 double dx = tx[k] - px;
@@ -483,7 +592,7 @@ public final class AiPauser implements Listener {
         }
 
         /** 村民會害怕的生物：殭屍類（含屍殼、沉屍、殭屍村民）、豬屍獸、掠奪者類（女巫除外）、惱鬼 */
-        private static boolean isVillagerThreat(LivingEntity m) {
+        static boolean isVillagerThreat(LivingEntity m) {
             if (m instanceof Zombie || m instanceof Zoglin || m instanceof Vex) return true;
             return m instanceof Raider && !(m instanceof Witch);
         }
@@ -539,7 +648,8 @@ public final class AiPauser implements Listener {
             return n;
         }
 
-        boolean threatWithin(double px, double py, double pz, double radius) {
+        @Override
+        public boolean threatWithin(double px, double py, double pz, double radius) {
             double r2 = radius * radius;
             for (int k = 0; k < zx.length; k++) {
                 double dx = zx[k] - px;
