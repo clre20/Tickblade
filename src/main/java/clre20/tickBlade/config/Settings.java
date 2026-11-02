@@ -90,6 +90,7 @@ public final class Settings {
     public final boolean aiSkipTamed;
     public final Set<EntityType> aiExcluded;
     public final List<TimeWindow> villagerWindows;
+    public final List<TimeWindow> villagerSleepWindows;
     public final int wakeAfterTradeTicks;
     public final int wakeWhenDamagedTicks;
     public final int wakeOnInteractTicks;
@@ -159,6 +160,7 @@ public final class Settings {
         aiSkipTamed = c.getBoolean("ai-pause.skip-tamed", true);
         aiExcluded = types(c.getStringList("ai-pause.excluded-types"), "ai-pause.excluded-types", unknownType);
         villagerWindows = windows(c.getStringList("ai-pause.wake.villager-work-windows"));
+        villagerSleepWindows = windows(c.getStringList("ai-pause.wake.villager-sleep-windows"));
         wakeAfterTradeTicks = clamp(c.getInt("ai-pause.wake.villager-after-trade-seconds", 10), 0, 3600) * 20;
         wakeWhenDamagedTicks = clamp(c.getInt("ai-pause.wake.when-damaged-seconds", 10), 0, 3600) * 20;
         wakeOnInteractTicks = clamp(c.getInt("ai-pause.wake.villager-interact-seconds", 10), 0, 3600) * 20;
