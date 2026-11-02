@@ -23,6 +23,7 @@ import org.bukkit.entity.Zoglin;
 import org.bukkit.entity.Vex;
 import org.bukkit.entity.Witch;
 import org.bukkit.entity.Zombie;
+import org.bukkit.entity.memory.MemoryKey;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -58,6 +59,8 @@ public final class AiPauser implements Listener {
     private final NamespacedKey pausedKey;
     /** 暫時喚醒到第幾個 tick（只存 UUID） */
     private final Map<UUID, Long> wakeUntil = new HashMap<>();
+    /** 今晚為了去睡覺喚醒的紀錄 {第幾天, 開始的 tick}；只存 UUID，每輪掃描清掉兩天前的 */
+    private final Map<UUID, long[]> sleepAttempt = new HashMap<>();
 
     private BukkitTask scanTask;
     private BukkitTask workTask;
@@ -115,6 +118,7 @@ public final class AiPauser implements Listener {
         if (!pending.isEmpty()) return; // 上一輪還沒處理完
         // 清掉過期的喚醒紀錄
         wakeUntil.values().removeIf(t -> t <= tick);
+        sleepAttempt.values().removeIf(a -> tick - a[1] > 48000);
         Settings s = plugin.settings();
         for (World w : plugin.getServer().getWorlds()) {
             if (!s.aiWorld(w.getName())) continue;
@@ -166,7 +170,7 @@ public final class AiPauser implements Listener {
         if (!paused && !mob.isAware()) return; // 別人關掉的 AI，不碰
 
         Why inel = ineligible(mob, s);
-        Why wake = inel == null ? wakeReason(mob, s, snap) : null;
+        Why wake = inel == null ? wakeReason(mob, s, snap, true) : null;
         int crowd = snap.countSameType(i, s.crowdRadius);
 
         if (!paused) {
@@ -231,7 +235,7 @@ public final class AiPauser implements Listener {
     }
 
     /** 這個時候需要 AI 的原因（null = 不需要），計算交給原版 */
-    private Why wakeReason(Mob mob, Settings s, Nearby near) {
+    private Why wakeReason(Mob mob, Settings s, Nearby near, boolean record) {
         Long until = wakeUntil.get(mob.getUniqueId());
         long now = plugin.getServer().getCurrentTick();
         if (until != null && until > now) return new Why("woken", "seconds", (until - now + 19) / 20);
@@ -244,12 +248,11 @@ public final class AiPauser implements Listener {
                 long t = mob.getWorld().getTime();
                 if (t < 12000) return new Why("wake-up");
             }
-            // 睡覺時間開始時喚醒，讓村民走到床上；躺下後可以再暫停，白天會被叫醒起床
-            if (v.isAdult() && !v.isSleeping()) {
-                long time = mob.getWorld().getTime();
-                for (Settings.TimeWindow win : s.villagerSleepWindows) {
-                    if (win.contains(time)) return new Why("sleep-window", "from", win.from(), "to", win.to());
-                }
+            // 晚上：有床的村民喚醒讓它走到床上；躺下後可以再暫停，白天會被叫醒起床。
+            // 每晚最多喚醒 villager-sleep-max-seconds 秒，走不到床（例如床上方空間不夠）就放棄，不整晚開著 AI
+            if (v.isAdult() && !v.isSleeping() && v.getMemory(MemoryKey.HOME) != null) {
+                Why sleep = sleepWake(v, s, record);
+                if (sleep != null) return sleep;
             }
             // 附近有殭屍、掠奪者等威脅：要有 AI 才會逃跑（被關住的村民跑不掉，交給鐵傀儡農場規則判斷）
             if (s.villagerThreatRadius > 0
@@ -269,6 +272,29 @@ public final class AiPauser implements Listener {
             }
         }
         return null;
+    }
+
+    private Why sleepWake(Villager v, Settings s, boolean record) {
+        World w = v.getWorld();
+        long time = w.getTime();
+        Settings.TimeWindow hit = null;
+        for (Settings.TimeWindow win : s.villagerSleepWindows) {
+            if (win.contains(time)) {
+                hit = win;
+                break;
+            }
+        }
+        if (hit == null) return null;
+        long now = plugin.getServer().getCurrentTick();
+        long day = w.getFullTime() / 24000L;
+        long[] a = sleepAttempt.get(v.getUniqueId());
+        if (a == null || a[0] != day) {
+            a = new long[]{day, now};
+            if (record) sleepAttempt.put(v.getUniqueId(), a);
+        }
+        long left = s.villagerSleepMaxTicks - (now - a[1]);
+        if (left <= 0) return null; // 今晚已經試過了，走不到床就放棄
+        return new Why("sleep-window", "from", hit.from(), "to", hit.to(), "seconds", (left + 19) / 20);
     }
 
     /**
@@ -318,7 +344,7 @@ public final class AiPauser implements Listener {
         Why inel = ineligible(mob, s);
         if (inel != null) return new Diagnosis(state, reason, crowd, confined, "ineligible", inel);
         Nearby live = new LiveNearby(mob.getWorld());
-        Why wake = wakeReason(mob, s, live);
+        Why wake = wakeReason(mob, s, live, false); // inspect 不改變狀態
         if (wake != null) return new Diagnosis(state, reason, crowd, confined, "wake", wake);
         if (crowd >= s.crowdPauseAt) return new Diagnosis(state, reason, crowd, confined, "pause-crowd", null);
         if (state.equals("paused") && crowd > s.crowdResumeAt) {

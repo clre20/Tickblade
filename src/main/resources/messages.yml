@@ -115,7 +115,7 @@ inspect:
     love: "在繁殖狀態"
     sheared: "被剪過毛，等吃草長回羊毛"
     trading: "正在交易"
-    sleep-window: "村民睡覺時段 {from}~{to}（要走到床上）"
+    sleep-window: "村民睡覺時段 {from}~{to}，要走到床上（今晚最多再等 {seconds} 秒）"
     wake-up: "白天了還躺在床上，要起床"
     threat: "{radius} 格內有殭屍、掠奪者等威脅，要能逃跑"
     unemployed: "沒有職業又能走動，要去找工作站"
