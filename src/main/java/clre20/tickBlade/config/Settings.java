@@ -89,6 +89,9 @@ public final class Settings {
     public final List<TimeWindow> villagerWindows;
     public final int wakeAfterTradeTicks;
     public final int wakeWhenDamagedTicks;
+    public final int wakeOnInteractTicks;
+    public final int wakeWorkstationTicks;
+    public final double workstationWakeRadius;
     public final boolean wakeShearedSheep;
     public final boolean wakeLoveMode;
 
@@ -152,6 +155,9 @@ public final class Settings {
         villagerWindows = windows(c.getStringList("ai-pause.wake.villager-work-windows"));
         wakeAfterTradeTicks = clamp(c.getInt("ai-pause.wake.villager-after-trade-seconds", 10), 0, 3600) * 20;
         wakeWhenDamagedTicks = clamp(c.getInt("ai-pause.wake.when-damaged-seconds", 10), 0, 3600) * 20;
+        wakeOnInteractTicks = clamp(c.getInt("ai-pause.wake.villager-interact-seconds", 10), 0, 3600) * 20;
+        wakeWorkstationTicks = clamp(c.getInt("ai-pause.wake.workstation-placed-seconds", 60), 0, 3600) * 20;
+        workstationWakeRadius = clamp(c.getDouble("ai-pause.wake.workstation-placed-radius", 16), 1, 48);
         wakeShearedSheep = c.getBoolean("ai-pause.wake.sheared-sheep", true);
         wakeLoveMode = c.getBoolean("ai-pause.wake.love-mode", true);
     }

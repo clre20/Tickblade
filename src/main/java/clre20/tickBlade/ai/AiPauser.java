@@ -23,6 +23,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.Material;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.inventory.MerchantInventory;
@@ -226,8 +229,9 @@ public final class AiPauser implements Listener {
                     && !Confinement.isConfined(mob)) return true;
             if (v.isAdult()) {
                 Villager.Profession p = v.getProfession();
-                // 沒有職業的村民要有 AI 才能找到工作站方塊（交易所剛放好工作站時）
-                if (p == Villager.Profession.NONE) return true;
+                // 沒有職業、可以走動的村民要有 AI 才會去找工作站；被困住的可以暫停，
+                // 附近放下工作站方塊時再喚醒（onWorkstationPlace）
+                if (p == Villager.Profession.NONE) return !Confinement.isConfined(mob);
                 if (p != Villager.Profession.NITWIT && !s.villagerWindows.isEmpty()) {
                     long time = mob.getWorld().getTime();
                     for (Settings.TimeWindow win : s.villagerWindows) {
@@ -277,6 +281,34 @@ public final class AiPauser implements Listener {
         if (!plugin.settings().aiEnabled) return;
         wake(v, plugin.settings().wakeAfterTradeTicks);
     }
+
+    /** 右鍵點擊被暫停的村民時喚醒（沒職業的村民只會搖頭，不會開交易視窗） */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onInteract(PlayerInteractEntityEvent e) {
+        if (!(e.getRightClicked() instanceof Villager v)) return;
+        if (!v.getPersistentDataContainer().has(pausedKey)) return;
+        wake(v, plugin.settings().wakeOnInteractTicks);
+    }
+
+    /** 放下工作站方塊時，附近被暫停的無職業村民喚醒一段時間去認領 */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onWorkstationPlace(BlockPlaceEvent e) {
+        if (!WORKSTATIONS.contains(e.getBlockPlaced().getType())) return;
+        Settings s = plugin.settings();
+        if (!s.aiEnabled || s.wakeWorkstationTicks <= 0) return;
+        for (Villager v : e.getBlockPlaced().getLocation().toCenterLocation()
+                .getNearbyEntitiesByType(Villager.class, s.workstationWakeRadius)) {
+            if (v.getProfession() == Villager.Profession.NONE && v.getPersistentDataContainer().has(pausedKey)) {
+                wake(v, s.wakeWorkstationTicks);
+            }
+        }
+    }
+
+    private static final java.util.Set<Material> WORKSTATIONS = java.util.EnumSet.of(
+            Material.BLAST_FURNACE, Material.SMOKER, Material.CARTOGRAPHY_TABLE, Material.BREWING_STAND,
+            Material.COMPOSTER, Material.BARREL, Material.FLETCHING_TABLE, Material.CAULDRON,
+            Material.WATER_CAULDRON, Material.LAVA_CAULDRON, Material.POWDER_SNOW_CAULDRON,
+            Material.LECTERN, Material.STONECUTTER, Material.LOOM, Material.SMITHING_TABLE, Material.GRINDSTONE);
 
     /** 被任何生物（含投射物）攻擊時喚醒，才能反擊或逃跑 */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
