@@ -140,6 +140,12 @@ ai-pause:
       - "5000-6400"
     # 村民交易後喚醒幾秒（讓村民升級）
     villager-after-trade-seconds: 10
+    # 右鍵點擊被暫停的村民時喚醒幾秒（沒職業的村民只會搖頭，不會開交易視窗）
+    villager-interact-seconds: 10
+    # 放下工作站方塊時，半徑幾格內被暫停的無職業村民喚醒幾秒去認領職業
+    # （沒被困住的無職業村民本來就不會暫停）
+    workstation-placed-seconds: 60
+    workstation-placed-radius: 16
     # 沒被關住的村民，附近幾格內有殭屍、掠奪者等威脅時喚醒，才會逃跑（0 = 關閉）
     villager-threat-radius: 12
     # 被任何生物（玩家、怪物、投射物）攻擊後喚醒幾秒
