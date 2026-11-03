@@ -168,6 +168,15 @@ public final class TickBladeCommand implements TabExecutor {
         m.sendPlain(sender, "status.spikes", "threshold", (int) s.spikeThresholdMs, "total", mon.totalSpikes(),
                 "max", TickMonitor.fmt(mon.maxSpike()), "last", last);
 
+        if (!s.stackEnabled) m.sendPlain(sender, "status.stacks-off");
+        else {
+            var sc = plugin.stackCapture();
+            if (sc.totalCaptures() == 0) m.sendPlain(sender, "status.stacks-none");
+            else m.sendPlain(sender, "status.stacks", "count", sc.totalCaptures(),
+                    "time", new SimpleDateFormat("HH:mm:ss").format(new Date(sc.lastWhereAt())),
+                    "where", String.valueOf(sc.lastWhere()).replace('&', '＆'));
+        }
+
         SparkCapture cap = plugin.sparkCapture();
         if (cap.running()) m.sendPlain(sender, "status.profile-running", "seconds", cap.remainingSeconds());
         else {

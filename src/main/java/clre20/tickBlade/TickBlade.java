@@ -9,6 +9,7 @@ import clre20.tickBlade.despawn.DespawnFixer;
 import clre20.tickBlade.gui.HotspotScanner;
 import clre20.tickBlade.gui.MenuListener;
 import clre20.tickBlade.monitor.SpikeLog;
+import clre20.tickBlade.monitor.StackCapture;
 import clre20.tickBlade.monitor.TickMonitor;
 import clre20.tickBlade.shed.LoadShedder;
 import clre20.tickBlade.spark.SparkCapture;
@@ -49,6 +50,8 @@ public final class TickBlade extends JavaPlugin implements Listener {
     private UpdateChecker updateChecker;
     private TickMonitor tickMonitor;
     private SpikeLog spikeLog;
+    private StackCapture stackCapture;
+    private final long enabledAt = System.nanoTime();
     private SparkCapture sparkCapture;
     private LoadShedder loadShedder;
     private DespawnFixer despawnFixer;
@@ -69,6 +72,7 @@ public final class TickBlade extends JavaPlugin implements Listener {
         updateChecker = new UpdateChecker(getPluginMeta().getVersion());
         tickMonitor = new TickMonitor(this);
         spikeLog = new SpikeLog(this);
+        stackCapture = new StackCapture(this);
         sparkCapture = new SparkCapture(this);
         loadShedder = new LoadShedder(this);
         despawnFixer = new DespawnFixer(this);
@@ -78,6 +82,7 @@ public final class TickBlade extends JavaPlugin implements Listener {
         var pm = getServer().getPluginManager();
         pm.registerEvents(this, this);
         pm.registerEvents(tickMonitor, this);
+        pm.registerEvents(stackCapture, this);
         pm.registerEvents(loadShedder, this);
         pm.registerEvents(despawnFixer, this);
         pm.registerEvents(aiPauser, this);
@@ -92,7 +97,10 @@ public final class TickBlade extends JavaPlugin implements Listener {
 
         startModules();
         // 卡頓紀錄每分鐘批次寫入
-        flushTask = getServer().getScheduler().runTaskTimer(this, () -> io.execute(spikeLog::flush), 1200L, 1200L);
+        flushTask = getServer().getScheduler().runTaskTimer(this, () -> io.execute(() -> {
+            spikeLog.flush();
+            stackCapture.flush();
+        }), 1200L, 1200L);
 
         getLogger().info(messages.console("console.enabled", "version", getPluginMeta().getVersion()));
         if (settings.updateOnStartup) {
@@ -103,6 +111,7 @@ public final class TickBlade extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         if (flushTask != null) flushTask.cancel();
+        if (stackCapture != null) stackCapture.stop();
         if (aiPauser != null) aiPauser.shutdown();
         if (loadShedder != null) loadShedder.stop();
         if (despawnFixer != null) despawnFixer.stop();
@@ -111,6 +120,7 @@ public final class TickBlade extends JavaPlugin implements Listener {
         getServer().getScheduler().cancelTasks(this);
         if (io != null) {
             if (spikeLog != null) io.execute(spikeLog::flush);
+            if (stackCapture != null) io.execute(stackCapture::flush);
             io.shutdown();
             try {
                 io.awaitTermination(5, TimeUnit.SECONDS);
@@ -122,6 +132,7 @@ public final class TickBlade extends JavaPlugin implements Listener {
     }
 
     private void startModules() {
+        stackCapture.start();
         loadShedder.start();
         despawnFixer.start();
         aiPauser.start();
@@ -219,6 +230,15 @@ public final class TickBlade extends JavaPlugin implements Listener {
 
     public TickMonitor tickMonitor() {
         return tickMonitor;
+    }
+
+    public StackCapture stackCapture() {
+        return stackCapture;
+    }
+
+    /** 插件啟用後經過的秒數（任何執行緒都可呼叫） */
+    public long uptimeSeconds() {
+        return (System.nanoTime() - enabledAt) / 1_000_000_000L;
     }
 
     public SpikeLog spikeLog() {

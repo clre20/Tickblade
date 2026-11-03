@@ -52,6 +52,9 @@ status:
   spikes-none: "無"
   profile-running: "&7spark 自動錄製：&e錄製中&7（剩餘約 {seconds} 秒）"
   profile-idle: "&7spark 自動錄製：待命｜已存 {count} 份報告"
+  stacks: "&7卡頓堆疊擷取：本次啟動 &e{count} &7次｜最近（{time}）：&f{where}"
+  stacks-none: "&7卡頓堆疊擷取：本次啟動 0 次"
+  stacks-off: "&7卡頓堆疊擷取：&8已關閉"
 
 spike:
   profile-started: "&e卡頓次數達到門檻，已開始錄製 spark 報告（{seconds} 秒，只記錄超過 {over} ms 的 tick）。"
@@ -189,6 +192,7 @@ console:
   update-dev: "目前版本 v{version} 比 GitHub 最新 v{latest} 新（開發版）"
   update-failed: "檢查更新失敗：{reason}"
   spike: "卡頓：單一 tick {ms} ms"
+  stack-captured: "主執行緒已卡 {ms} ms，正在執行：{where}（完整堆疊寫入 reports/stacks.log）"
   profile-started: "已開始錄製 spark 報告（{seconds} 秒）"
   profile-saved: "spark 報告已存檔：{file}"
   profile-failed: "spark 報告錄製失敗：{reason}"
