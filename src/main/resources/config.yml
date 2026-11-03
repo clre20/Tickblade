@@ -70,6 +70,22 @@ spike-detector:
     enabled: true
     max-size-kb: 1024
 
+  # 卡頓當下擷取主執行緒在做什麼（spark 抓不到卡在寫硬碟等系統呼叫的情況，這個抓得到）
+  # 由背景執行緒檢查，主執行緒幾乎沒有負擔；結果寫到 reports/stacks.log，後台也會顯示一行「可能來源」
+  stack-capture:
+    enabled: true
+    # 目前這個 tick 跑超過幾毫秒就擷取
+    threshold-ms: 1000
+    # 背景執行緒每隔幾毫秒檢查一次
+    check-interval-ms: 100
+    # 同一次卡頓最多擷取幾次，以及每次之間至少隔幾毫秒（可以看出卡住的位置有沒有變）
+    max-per-spike: 3
+    repeat-interval-ms: 1000
+    # 每次最多記錄幾層堆疊
+    max-frames: 40
+    # stacks.log 超過大小時改名為 stacks.log.1（只保留一份舊檔）
+    log-max-size-kb: 2048
+
 # 熱點區塊介面（/tickb hotspots）
 hotspots:
   # 除了 tickblade.hotspots 權限，還需要的 OP 等級（依 ops.json 的 level；0 = 不檢查）

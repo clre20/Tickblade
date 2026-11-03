@@ -60,6 +60,13 @@ public final class Settings {
     public final long reportsMaxBytes;
     public final boolean spikeLogEnabled;
     public final long spikeLogMaxBytes;
+    public final boolean stackEnabled;
+    public final int stackThresholdMs;
+    public final int stackCheckIntervalMs;
+    public final int stackMaxPerTick;
+    public final int stackIntervalMs;
+    public final int stackMaxFrames;
+    public final long stackLogMaxBytes;
     public final int hotspotCacheSeconds;
     public final int hotspotChunksPerTick;
     public final int hotspotMinOpLevel;
@@ -132,6 +139,13 @@ public final class Settings {
         reportsMaxBytes = clamp(c.getLong("spike-detector.reports.max-total-mb", 500), 1, 100_000) * 1024L * 1024L;
         spikeLogEnabled = c.getBoolean("spike-detector.spike-log.enabled", true);
         spikeLogMaxBytes = clamp(c.getLong("spike-detector.spike-log.max-size-kb", 1024), 16, 102_400) * 1024L;
+        stackEnabled = c.getBoolean("spike-detector.stack-capture.enabled", true);
+        stackThresholdMs = clamp(c.getInt("spike-detector.stack-capture.threshold-ms", 1000), 200, 60000);
+        stackCheckIntervalMs = clamp(c.getInt("spike-detector.stack-capture.check-interval-ms", 100), 20, 5000);
+        stackMaxPerTick = clamp(c.getInt("spike-detector.stack-capture.max-per-spike", 3), 1, 20);
+        stackIntervalMs = clamp(c.getInt("spike-detector.stack-capture.repeat-interval-ms", 1000), 100, 60000);
+        stackMaxFrames = clamp(c.getInt("spike-detector.stack-capture.max-frames", 40), 5, 500);
+        stackLogMaxBytes = clamp(c.getLong("spike-detector.stack-capture.log-max-size-kb", 2048), 16, 102_400) * 1024L;
         hotspotCacheSeconds = clamp(c.getInt("hotspots.cache-seconds", 30), 0, 3600);
         hotspotChunksPerTick = clamp(c.getInt("hotspots.chunks-per-tick", 150), 10, 5000);
         hotspotMinOpLevel = clamp(c.getInt("hotspots.min-op-level", 2), 0, 4);
