@@ -83,7 +83,22 @@ spike-detector:
     repeat-interval-ms: 1000
     # 每次最多記錄幾層堆疊
     max-frames: 40
-    # stacks.log 超過大小時改名為 stacks.log.1（只保留一份舊檔）
+    # stacks.log 超過大小時改名為 stacks.log.1（只保留一份舊檔）；大約每天 1 MB
+    log-max-size-kb: 8192
+
+  # 程序凍結診斷：卡頓時如果連背景執行緒也停住，代表整個 Java 程序被凍住（不是某段程式太慢）
+  # 這時會對照同一段時間的 JVM 安全點（JFR）、容器 CPU 限流、系統壓力（PSI）與 steal，
+  # 判斷是 JVM 內部、CPU 限流、磁碟、記憶體還是主機造成，寫到 reports/freezes.log
+  # 只在背景執行緒運作；系統數據每秒讀一次 /proc、/sys（記憶體中的虛擬檔案，不讀寫硬碟）
+  freeze-diagnosis:
+    enabled: true
+    # 背景執行緒晚醒超過幾毫秒算一次程序凍結
+    threshold-ms: 1000
+    # 用 Java 內建的 JFR 記錄 JVM 安全點（不需要改啟動參數；無法使用時自動略過）
+    jfr: true
+    # JFR 只記錄超過幾毫秒的安全點
+    safepoint-threshold-ms: 100
+    # freezes.log 超過大小時改名為 freezes.log.1（只保留一份舊檔）
     log-max-size-kb: 2048
 
 # 熱點區塊介面（/tickb hotspots）

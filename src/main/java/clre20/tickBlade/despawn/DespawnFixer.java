@@ -173,7 +173,7 @@ public final class DespawnFixer implements Listener {
         if (m.isLeashed()) return "leashed";
         if (m.isInsideVehicle() || !m.getPassengers().isEmpty()) return "vehicle";
         if (m instanceof Raider r && (r.getRaid() != null || r.isPatrolLeader())) return "raid";
-        if (Protection.isForeign(m, s)) return "foreign";
+        if (plugin.foreignCache().isForeign(m, s, plugin.getServer().getCurrentTick())) return "foreign";
         if (s.despawnSkipConfined && Confinement.isConfined(m)) return "confined";
         return null;
     }

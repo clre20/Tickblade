@@ -3,6 +3,7 @@ package clre20.tickBlade.command;
 import clre20.tickBlade.TickBlade;
 import clre20.tickBlade.config.Messages;
 import clre20.tickBlade.config.Settings;
+import clre20.tickBlade.monitor.FreezeDiagnosis;
 import clre20.tickBlade.monitor.TickMonitor;
 import clre20.tickBlade.spark.SparkCapture;
 import clre20.tickBlade.update.UpdateChecker;
@@ -175,6 +176,28 @@ public final class TickBladeCommand implements TabExecutor {
             else m.sendPlain(sender, "status.stacks", "count", sc.totalCaptures(),
                     "time", new SimpleDateFormat("HH:mm:ss").format(new Date(sc.lastWhereAt())),
                     "where", String.valueOf(sc.lastWhere()).replace('&', '＆'));
+        }
+
+        if (!s.freezeEnabled) m.sendPlain(sender, "status.freezes-off");
+        else {
+            var d = plugin.stackCapture().diagnosis();
+            if (d.count() == 0) m.sendPlain(sender, "status.freezes-none", "threshold", s.freezeThresholdMs);
+            else {
+                StringBuilder b = new StringBuilder();
+                for (var v : FreezeDiagnosis.Verdict.values()) {
+                    long n = d.count(v);
+                    if (n == 0) continue;
+                    if (b.length() > 0) b.append(m.raw("status.breakdown-separator"));
+                    b.append(m.raw("status.breakdown-item", "name", m.raw("freeze.short." + v.name().toLowerCase()), "count", n));
+                }
+                m.sendPlain(sender, "status.freezes", "threshold", s.freezeThresholdMs, "count", d.count(),
+                        "seconds", String.format("%.1f", d.totalMs() / 1000.0), "breakdown", b.toString());
+            }
+            String on = m.raw("status.source-on"), off = m.raw("status.source-off");
+            String jfr = d.jfrRunning() ? on : d.jfrError() == null ? off
+                    : m.raw("status.jfr-off", "reason", d.jfrError().replace('&', '＆'));
+            m.sendPlain(sender, "status.freeze-sources", "jfr", jfr, "throttle", d.hasThrottle() ? on : off,
+                    "psi", d.hasPsi() ? on : off, "steal", d.hasSteal() ? on : off);
         }
 
         SparkCapture cap = plugin.sparkCapture();

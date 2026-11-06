@@ -14,6 +14,7 @@ import clre20.tickBlade.monitor.TickMonitor;
 import clre20.tickBlade.shed.LoadShedder;
 import clre20.tickBlade.spark.SparkCapture;
 import clre20.tickBlade.update.UpdateChecker;
+import clre20.tickBlade.util.ForeignCache;
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
@@ -58,6 +59,7 @@ public final class TickBlade extends JavaPlugin implements Listener {
     private AiPauser aiPauser;
     private HotspotScanner hotspots;
     private BukkitTask flushTask;
+    private final ForeignCache foreignCache = new ForeignCache();
 
     @Override
     public void onEnable() {
@@ -100,6 +102,7 @@ public final class TickBlade extends JavaPlugin implements Listener {
         flushTask = getServer().getScheduler().runTaskTimer(this, () -> io.execute(() -> {
             spikeLog.flush();
             stackCapture.flush();
+            stackCapture.diagnosis().flush();
         }), 1200L, 1200L);
 
         getLogger().info(messages.console("console.enabled", "version", getPluginMeta().getVersion()));
@@ -111,16 +114,20 @@ public final class TickBlade extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         if (flushTask != null) flushTask.cancel();
-        if (stackCapture != null) stackCapture.stop();
+        if (stackCapture != null) stackCapture.stop(true);
         if (aiPauser != null) aiPauser.shutdown();
         if (loadShedder != null) loadShedder.stop();
         if (despawnFixer != null) despawnFixer.stop();
         if (hotspots != null) hotspots.shutdown();
         if (sparkCapture != null) sparkCapture.shutdown();
         getServer().getScheduler().cancelTasks(this);
+        foreignCache.clear();
         if (io != null) {
             if (spikeLog != null) io.execute(spikeLog::flush);
-            if (stackCapture != null) io.execute(stackCapture::flush);
+            if (stackCapture != null) {
+                io.execute(stackCapture::flush);
+                io.execute(stackCapture.diagnosis()::flush);
+            }
             io.shutdown();
             try {
                 io.awaitTermination(5, TimeUnit.SECONDS);
@@ -163,6 +170,7 @@ public final class TickBlade extends JavaPlugin implements Listener {
     /** /tickb reload */
     public String reload() {
         String err = loadFiles();
+        foreignCache.clear();
         startModules();
         return err;
     }
@@ -206,6 +214,10 @@ public final class TickBlade extends JavaPlugin implements Listener {
 
     public Path reportsDir() {
         return getDataFolder().toPath().resolve("reports");
+    }
+
+    public ForeignCache foreignCache() {
+        return foreignCache;
     }
 
     public Settings settings() {
