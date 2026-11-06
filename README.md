@@ -15,6 +15,8 @@
   - 記錄每個 tick 花費的時間，短時間內多次超過門檻（預設 500 ms）就自動錄製 spark（只記錄長 tick）
   - 報告直接存成檔案放在 `plugins/TickBlade/reports/`，不會有網址過期的問題；有檔案數與總容量上限
   - 每次卡頓記錄到 `spikes.log`（有大小上限，自動輪替）
+  - **卡頓當下擷取主執行緒堆疊**：tick 跑超過 1 秒時，背景執行緒直接讀主執行緒正在做什麼，寫到 `stacks.log`，後台顯示一行「可能來源」（含插件的 jar 檔名）。卡在寫硬碟等系統呼叫時 spark 取樣抓不到，這個抓得到
+  - **程序凍結診斷**：如果卡頓時連背景執行緒也停住，代表整個 Java 程序被凍住（不是某段程式太慢）。這時會對照 JVM 安全點（用 Java 內建的 JFR，不需要改啟動參數）、容器 CPU 限流、系統壓力（PSI）與 steal，判斷是 JVM 內部、CPU 限流、磁碟、記憶體還是主機造成，寫到 `freezes.log`
 - **熱點區塊介面**：
   - 箱子介面列出區塊的實體、方塊實體、漏斗數量，顯示數量最多的 5 種生物（以玩家的遊戲語言顯示）
   - 分類（實體／方塊實體／漏斗）與排序（多到少／少到多／離我最近）分開切換
@@ -80,6 +82,8 @@
 
 3. 錄完後用 `/tickb reports` 查看檔名，到 `plugins/TickBlade/reports/` 下載檔案
 4. 把 `.sparkprofile` 檔案拖進 https://spark.lucko.me 即可查看
+5. 如果 spark 報告看不出原因，看 `plugins/TickBlade/reports/stacks.log`：每次卡頓超過 1 秒時主執行緒正在執行的程式
+6. 如果 `stacks.log` 的位置很分散、每次都不一樣，看 `plugins/TickBlade/reports/freezes.log`：每一次整個程序被凍住的判斷結果；「主機暫停」「CPU 限流」這類結果需要聯絡主機商處理
 
 - 每次錄製長度、只記錄超過幾毫秒的 tick、冷卻時間都可以在 `spike-detector.auto-profile` 設定
 - 需要 spark（Paper 內建）；`paper-global.yml` 的 `spark.enabled` 必須是 `true`
@@ -131,6 +135,8 @@
 | `despawn-fix.worlds` / `ai-pause.worlds` | 套用的世界，空清單 = 全部世界 |
 | `spike-detector.spike-threshold-ms` | 單一 tick 超過幾毫秒算一次卡頓 |
 | `spike-detector.reports.max-files` / `max-total-mb` | 報告數量與總容量上限 |
+| `spike-detector.stack-capture.threshold-ms` | tick 跑超過幾毫秒就擷取主執行緒堆疊 |
+| `spike-detector.freeze-diagnosis.enabled` | 程序凍結診斷開關（`jfr: false` 可以只用系統數據） |
 | `load-shedding.levels` | 降載等級：MSPT 門檻與要降到的模擬距離／視距 |
 | `ai-pause.crowd.pause-at` / `resume-at` | 暫停與恢復的同類生物數量 |
 | `ai-pause.wake.villager-work-windows` | 村民補貨的喚醒時段（遊戲時間） |
@@ -159,6 +165,8 @@ Compatible with Paper 1.21.11 and 26.1.x–26.3 (Paper forks such as Purpur shou
   - Measures every tick. When ticks exceed the threshold (default: 500 ms) several times within a short window, a spark profiler is started automatically that records long ticks only.
   - Reports are saved as `.sparkprofile` files in `plugins/TickBlade/reports/`, so there are no expiring links. File count and total size are capped.
   - Every spike is logged to `spikes.log`, which is size-limited and rotated automatically.
+  - **Stack capture during spikes**: when a tick runs longer than 1 second, a background thread reads what the main thread is doing and writes it to `stacks.log`, with a one-line "likely source" (including the plugin's jar name) in the console. This works even when the main thread is stuck in a system call such as a disk write, which spark's sampling cannot see.
+  - **Process freeze diagnosis**: if the background thread also stops during a spike, the whole Java process was frozen (not just slow code). TickBlade then checks JVM safepoints (using Java's built-in JFR, no startup flags needed), container CPU throttling, system pressure (PSI), and steal time, and decides whether the JVM, CPU throttling, disk, memory, or the host caused it. Results go to `freezes.log`.
 
 - **Hotspot Chunk GUI**:
   - A chest GUI lists entity, block entity, and hopper counts per chunk, plus the 5 most common mob types (shown in each player's client language).
@@ -233,6 +241,8 @@ Base command: `/tickblade` (alias: `/tickb`).
 
 3. Run `/tickb reports` to see the file name, then download it from `plugins/TickBlade/reports/`.
 4. Drag the `.sparkprofile` file into https://spark.lucko.me to view it.
+5. If the spark report does not show the cause, check `plugins/TickBlade/reports/stacks.log`: what the main thread was running each time a tick took longer than 1 second.
+6. If the locations in `stacks.log` are scattered and different every time, check `plugins/TickBlade/reports/freezes.log`: the verdict for each whole-process freeze. Verdicts such as "paused by the host" or "CPU throttling" need to be raised with your host.
 
 - Recording length, the minimum tick duration to record, and the cooldown are configured under `spike-detector.auto-profile`.
 - Requires spark (bundled with Paper); `spark.enabled` in `paper-global.yml` must be `true`.
@@ -284,6 +294,8 @@ Base command: `/tickblade` (alias: `/tickb`).
 | `despawn-fix.worlds` / `ai-pause.worlds` | Worlds the feature applies to (empty list = all worlds) |
 | `spike-detector.spike-threshold-ms` | A single tick longer than this (ms) counts as a spike |
 | `spike-detector.reports.max-files` / `max-total-mb` | Maximum number and total size of saved reports |
+| `spike-detector.stack-capture.threshold-ms` | Capture the main thread's stack once a tick runs longer than this (ms) |
+| `spike-detector.freeze-diagnosis.enabled` | Turn process freeze diagnosis on or off (`jfr: false` uses system statistics only) |
 | `load-shedding.levels` | Load-shedding tiers: MSPT threshold and the simulation/view distance to drop to |
 | `ai-pause.crowd.pause-at` / `resume-at` | Same-type mob count to pause at and to resume at |
 | `ai-pause.wake.villager-work-windows` | In-game time windows when villagers wake up to restock |

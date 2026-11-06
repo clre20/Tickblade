@@ -14,16 +14,17 @@ public final class Protection {
     private Protection() {
     }
 
-    /** 其他插件或資料包管理的生物（NPC、MythicMobs、Shopkeepers…） */
+    /** 其他插件或資料包管理的生物（NPC、MythicMobs、Shopkeepers…）；掃描時請改用 ForeignCache */
     public static boolean isForeign(Entity e, Settings s) {
         if (s.skipScoreboardTags && !e.getScoreboardTags().isEmpty()) return true;
-        for (String key : s.metadataKeys) {
-            if (e.hasMetadata(key)) return true;
-        }
         if (s.skipForeignPdc) {
             for (NamespacedKey k : e.getPersistentDataContainer().getKeys()) {
                 if (!k.getNamespace().equals(NAMESPACE)) return true;
             }
+        }
+        // metadata 查詢每個鍵都要組一次字串，放最後
+        for (String key : s.metadataKeys) {
+            if (e.hasMetadata(key)) return true;
         }
         return false;
     }

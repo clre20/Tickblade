@@ -40,6 +40,9 @@ public final class StackCapture implements Listener {
     private final TickBlade plugin;
     private final Thread mainThread;
     private ScheduledExecutorService watcher;
+    private final FreezeDiagnosis.Shared shared = new FreezeDiagnosis.Shared();
+    private volatile FreezeDiagnosis diagnosis;
+    private long lastCheckEnd;             // 只在 watcher 執行緒存取
 
     private volatile long tickStart;      // 0 = 目前不在 tick 中
     private volatile long tickNumber;
@@ -55,6 +58,7 @@ public final class StackCapture implements Listener {
     public StackCapture(TickBlade plugin) {
         this.plugin = plugin;
         this.mainThread = Thread.currentThread(); // 在 onEnable（主執行緒）建立
+        this.diagnosis = new FreezeDiagnosis(plugin, shared);
     }
 
     // ---------- 主執行緒：只記錄時間 ----------
@@ -73,48 +77,87 @@ public final class StackCapture implements Listener {
     // ---------- 背景執行緒 ----------
 
     public void start() {
-        stop();
+        stop(false);
         Settings s = plugin.settings();
-        if (!s.stackEnabled) return;
-        watcher = Executors.newSingleThreadScheduledExecutor(r -> {
+        if (!s.stackEnabled && !s.freezeEnabled) return;
+        ScheduledExecutorService w = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "TickBlade-StackCapture");
             t.setDaemon(true);
             return t;
         });
-        watcher.scheduleWithFixedDelay(this::check, 1000, s.stackCheckIntervalMs, TimeUnit.MILLISECONDS);
+        watcher = w;
+        lastCheckEnd = 0;
+        FreezeDiagnosis d = new FreezeDiagnosis(plugin, shared);
+        diagnosis = d;
+        if (s.freezeEnabled) w.execute(() -> d.start(s));
+        w.scheduleWithFixedDelay(() -> check(d), 1000, s.stackCheckIntervalMs, TimeUnit.MILLISECONDS);
     }
 
-    public void stop() {
-        if (watcher != null) watcher.shutdownNow();
+    /** 停止背景執行緒；JFR 在背景執行緒上關閉。wait = 等它結束（關服時） */
+    public void stop(boolean wait) {
+        ScheduledExecutorService w = watcher;
         watcher = null;
+        if (w == null) return;
+        FreezeDiagnosis d = diagnosis;
+        try {
+            w.execute(d::stop);
+        } catch (RuntimeException ignored) {
+        }
+        w.shutdown(); // 週期任務取消，已排入的 stop 會執行
+        if (wait) {
+            try {
+                if (!w.awaitTermination(3, TimeUnit.SECONDS)) w.shutdownNow();
+            } catch (InterruptedException e) {
+                w.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
-    private void check() {
+    private void check(FreezeDiagnosis diagnosis) {
         try {
-            long start = tickStart;
-            if (start == 0) return;
             Settings s = plugin.settings();
             long now = System.nanoTime();
-            long ms = (now - start) / 1_000_000L;
-            if (ms < s.stackThresholdMs) return;
-            if (plugin.uptimeSeconds() < s.startupGraceSeconds) return;
-            long tick = tickNumber;
-            if (tick != capturedTick) {
-                capturedTick = tick;
-                capturedInTick = 0;
-            } else {
-                if (capturedInTick >= s.stackMaxPerTick) return;
-                if ((now - lastCaptureAt) / 1_000_000L < s.stackIntervalMs) return;
+            if (s.freezeEnabled) {
+                // 背景執行緒自己晚醒很久 = 整個程序被凍住（不是只有主執行緒慢）
+                if (lastCheckEnd != 0) {
+                    long late = (now - lastCheckEnd) / 1_000_000L - s.stackCheckIntervalMs;
+                    if (late >= s.freezeThresholdMs && plugin.uptimeSeconds() >= s.startupGraceSeconds) {
+                        long end = System.currentTimeMillis();
+                        diagnosis.onFreeze(end - late, end, late, tickStart != 0);
+                    }
+                }
+                diagnosis.sampleIfDue(now);
+                diagnosis.resolveDue();
             }
-            StackTraceElement[] stack = mainThread.getStackTrace();
-            // 擷取當下 tick 已經結束就不算（避免抓到下一個 tick 的正常畫面）
-            if (tickStart != start) return;
-            capturedInTick++;
-            lastCaptureAt = now;
-            record(ms, capturedInTick, stack, s);
+            if (s.stackEnabled) captureIfSlow(s, now);
         } catch (Throwable t) {
             plugin.getLogger().warning("Stack capture failed: " + t);
+        } finally {
+            lastCheckEnd = System.nanoTime();
         }
+    }
+
+    private void captureIfSlow(Settings s, long now) {
+        long start = tickStart;
+        if (start == 0) return;
+        long ms = (now - start) / 1_000_000L;
+        if (ms < s.stackThresholdMs) return;
+        if (plugin.uptimeSeconds() < s.startupGraceSeconds) return;
+        long tick = tickNumber;
+        if (tick != capturedTick) {
+            capturedTick = tick;
+            capturedInTick = 0;
+        } else {
+            if (capturedInTick >= s.stackMaxPerTick) return;
+            if ((now - lastCaptureAt) / 1_000_000L < s.stackIntervalMs) return;
+        }
+        StackTraceElement[] stack = mainThread.getStackTrace();
+        // 擷取當下 tick 已經結束就不算（避免抓到下一個 tick 的正常畫面）
+        if (tickStart != start) return;
+        capturedInTick++;
+        lastCaptureAt = now;
+        record(ms, capturedInTick, stack, s);
     }
 
     private void record(long ms, int nth, StackTraceElement[] stack, Settings s) {
@@ -198,6 +241,10 @@ public final class StackCapture implements Listener {
         } catch (IOException e) {
             plugin.getLogger().warning("Cannot write stacks.log: " + e.getMessage());
         }
+    }
+
+    public FreezeDiagnosis diagnosis() {
+        return diagnosis;
     }
 
     public long totalCaptures() {

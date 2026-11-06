@@ -67,6 +67,11 @@ public final class Settings {
     public final int stackIntervalMs;
     public final int stackMaxFrames;
     public final long stackLogMaxBytes;
+    public final boolean freezeEnabled;
+    public final int freezeThresholdMs;
+    public final boolean freezeJfr;
+    public final int freezeSafepointMs;
+    public final long freezeLogMaxBytes;
     public final int hotspotCacheSeconds;
     public final int hotspotChunksPerTick;
     public final int hotspotMinOpLevel;
@@ -145,7 +150,12 @@ public final class Settings {
         stackMaxPerTick = clamp(c.getInt("spike-detector.stack-capture.max-per-spike", 3), 1, 20);
         stackIntervalMs = clamp(c.getInt("spike-detector.stack-capture.repeat-interval-ms", 1000), 100, 60000);
         stackMaxFrames = clamp(c.getInt("spike-detector.stack-capture.max-frames", 40), 5, 500);
-        stackLogMaxBytes = clamp(c.getLong("spike-detector.stack-capture.log-max-size-kb", 2048), 16, 102_400) * 1024L;
+        stackLogMaxBytes = clamp(c.getLong("spike-detector.stack-capture.log-max-size-kb", 8192), 16, 102_400) * 1024L;
+        freezeEnabled = c.getBoolean("spike-detector.freeze-diagnosis.enabled", true);
+        freezeThresholdMs = clamp(c.getInt("spike-detector.freeze-diagnosis.threshold-ms", 1000), 200, 60000);
+        freezeJfr = c.getBoolean("spike-detector.freeze-diagnosis.jfr", true);
+        freezeSafepointMs = clamp(c.getInt("spike-detector.freeze-diagnosis.safepoint-threshold-ms", 100), 10, 60000);
+        freezeLogMaxBytes = clamp(c.getLong("spike-detector.freeze-diagnosis.log-max-size-kb", 2048), 16, 102_400) * 1024L;
         hotspotCacheSeconds = clamp(c.getInt("hotspots.cache-seconds", 30), 0, 3600);
         hotspotChunksPerTick = clamp(c.getInt("hotspots.chunks-per-tick", 150), 10, 5000);
         hotspotMinOpLevel = clamp(c.getInt("hotspots.min-op-level", 2), 0, 4);

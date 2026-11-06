@@ -230,7 +230,7 @@ public final class AiPauser implements Listener {
         if (mob instanceof Raider r && r.getRaid() != null) return new Why("raid");
         if (mob.getTarget() instanceof Player) return new Why("targeting-player");
         if (Protection.hasKeyword(mob, s)) return new Why("keyword", "keyword", s.nameKeyword);
-        if (Protection.isForeign(mob, s)) return new Why("foreign");
+        if (plugin.foreignCache().isForeign(mob, s, plugin.getServer().getCurrentTick())) return new Why("foreign");
         return null;
     }
 
