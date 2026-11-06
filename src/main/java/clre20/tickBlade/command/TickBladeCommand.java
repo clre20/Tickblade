@@ -4,6 +4,7 @@ import clre20.tickBlade.TickBlade;
 import clre20.tickBlade.config.Messages;
 import clre20.tickBlade.config.Settings;
 import clre20.tickBlade.monitor.FreezeDiagnosis;
+import clre20.tickBlade.monitor.StackCapture;
 import clre20.tickBlade.monitor.TickMonitor;
 import clre20.tickBlade.spark.SparkCapture;
 import clre20.tickBlade.update.UpdateChecker;
@@ -176,6 +177,23 @@ public final class TickBladeCommand implements TabExecutor {
             else m.sendPlain(sender, "status.stacks", "count", sc.totalCaptures(),
                     "time", new SimpleDateFormat("HH:mm:ss").format(new Date(sc.lastWhereAt())),
                     "where", String.valueOf(sc.lastWhere()).replace('&', '＆'));
+        }
+
+        if (!s.threadCpuEnabled) m.sendPlain(sender, "status.cpu-top-off");
+        else if (!plugin.stackCapture().cpuSupported()) m.sendPlain(sender, "status.cpu-top-unsupported");
+        else {
+            var top = plugin.stackCapture().cpuTotals(3);
+            if (top.isEmpty()) m.sendPlain(sender, "status.cpu-top-none");
+            else {
+                StringBuilder b = new StringBuilder();
+                for (var e : top) {
+                    if (b.length() > 0) b.append(m.raw("status.breakdown-separator"));
+                    String name = StackCapture.isJvmInternal(e.getKey()) ? m.raw("cpu.jvm-internal")
+                            : e.getKey().replace('&', '＆').replace('§', '＆');
+                    b.append(m.raw("status.cpu-top-item", "name", name, "seconds", String.format("%.1f", e.getValue() / 1000.0)));
+                }
+                m.sendPlain(sender, "status.cpu-top", "list", b.toString());
+            }
         }
 
         if (!s.freezeEnabled) m.sendPlain(sender, "status.freezes-off");

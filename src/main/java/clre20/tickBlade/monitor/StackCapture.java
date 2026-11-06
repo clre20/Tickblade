@@ -46,6 +46,10 @@ public final class StackCapture implements Listener {
 
     private volatile long tickStart;      // 0 = 目前不在 tick 中
     private volatile long tickNumber;
+    private final ThreadCpuTracker cpu = new ThreadCpuTracker();
+    private long lastCpuSampleNs;          // 只在 watcher 執行緒存取
+    private long cpuTick = -1;             // 已擷取、等結束後要統計 CPU 的 tick
+    private long cpuTickStartWall;
     private long capturedTick = -1;        // 只在 watcher 執行緒存取
     private int capturedInTick;
     private long lastCaptureAt;
@@ -124,11 +128,22 @@ public final class StackCapture implements Listener {
                     long late = (now - lastCheckEnd) / 1_000_000L - s.stackCheckIntervalMs;
                     if (late >= s.freezeThresholdMs && plugin.uptimeSeconds() >= s.startupGraceSeconds) {
                         long end = System.currentTimeMillis();
-                        diagnosis.onFreeze(end - late, end, late, tickStart != 0);
+                        boolean inTick = tickStart != 0;
+                        // 在 tick 中的凍結會在 tick 結束時另外統計，這裡不重複累計
+                        String usage = s.threadCpuEnabled
+                                ? formatUsage(cpu.report(end - late, s.threadCpuTop, !inTick)) : null;
+                        diagnosis.onFreeze(end - late, end, late, inTick, usage);
                     }
                 }
                 diagnosis.sampleIfDue(now);
                 diagnosis.resolveDue();
+            }
+            if (s.threadCpuEnabled) {
+                if (now - lastCpuSampleNs >= 1_000_000_000L) {
+                    cpu.sample();
+                    lastCpuSampleNs = now;
+                }
+                reportTickCpuIfEnded(s);
             }
             if (s.stackEnabled) captureIfSlow(s, now);
         } catch (Throwable t) {
@@ -157,7 +172,61 @@ public final class StackCapture implements Listener {
         if (tickStart != start) return;
         capturedInTick++;
         lastCaptureAt = now;
+        if (capturedInTick == 1 && s.threadCpuEnabled) {
+            cpuTick = tick;
+            cpuTickStartWall = System.currentTimeMillis() - ms;
+        }
         record(ms, capturedInTick, stack, s);
+    }
+
+    /** 被擷取過的 tick 結束後，記錄這次卡頓期間各執行緒用掉的 CPU */
+    private void reportTickCpuIfEnded(Settings s) {
+        if (cpuTick < 0) return;
+        if (tickStart != 0 && tickNumber == cpuTick) return; // 還沒結束
+        long startWall = cpuTickStartWall;
+        cpuTick = -1;
+        ThreadCpuTracker.Report r = cpu.report(startWall, s.threadCpuTop, true);
+        String usage = formatUsage(r);
+        if (usage == null) return;
+        var m = plugin.messages();
+        String entry = m.raw("cpu.tick-entry",
+                "time", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()),
+                "ms", System.currentTimeMillis() - startWall, "usage", usage);
+        synchronized (pending) {
+            if (pending.size() < MAX_PENDING) pending.add(clre20.tickBlade.config.Messages.stripColor(entry) + "\n\n");
+        }
+    }
+
+    /** 一行文字：期間、CPU 總量與最耗 CPU 的執行緒；資料不足回傳 null */
+    private String formatUsage(ThreadCpuTracker.Report r) {
+        if (r == null || r.top().isEmpty()) return null;
+        var m = plugin.messages();
+        StringBuilder list = new StringBuilder();
+        for (ThreadCpuTracker.Usage u : r.top()) {
+            if (list.length() > 0) list.append(m.raw("cpu.separator"));
+            String name = u.name().equals(ThreadCpuTracker.JVM_INTERNAL) ? m.raw("cpu.jvm-internal") : u.name();
+            String where = u.where() == null ? "" : m.raw("cpu.where", "where", u.where());
+            list.append(m.raw("cpu.item", "name", name, "where", where, "ms", u.ms()));
+        }
+        String cores = r.windowMs() <= 0 ? "?" : String.format("%.1f", r.totalMs() / (double) r.windowMs());
+        return m.raw("cpu.line", "window", r.windowMs(), "total", r.totalMs(), "cores", cores, "list", list);
+    }
+
+    static String[] corePrefixes() {
+        return CORE_PREFIXES.clone();
+    }
+
+    /** 累計最耗 CPU 的前 n 項（名稱已合併數字），給 /tickb status */
+    public java.util.List<java.util.Map.Entry<String, Long>> cpuTotals(int n) {
+        return cpu.totals(n);
+    }
+
+    public boolean cpuSupported() {
+        return cpu.supported();
+    }
+
+    public static boolean isJvmInternal(String key) {
+        return ThreadCpuTracker.JVM_INTERNAL.equals(key);
     }
 
     private void record(long ms, int nth, StackTraceElement[] stack, Settings s) {

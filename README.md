@@ -17,6 +17,7 @@
   - 每次卡頓記錄到 `spikes.log`（有大小上限，自動輪替）
   - **卡頓當下擷取主執行緒堆疊**：tick 跑超過 1 秒時，背景執行緒直接讀主執行緒正在做什麼，寫到 `stacks.log`，後台顯示一行「可能來源」（含插件的 jar 檔名）。卡在寫硬碟等系統呼叫時 spark 取樣抓不到，這個抓得到
   - **程序凍結診斷**：如果卡頓時連背景執行緒也停住，代表整個 Java 程序被凍住（不是某段程式太慢）。這時會對照 JVM 安全點（用 Java 內建的 JFR，不需要改啟動參數）、容器 CPU 限流、系統壓力（PSI）與 steal，判斷是 JVM 內部、CPU 限流、磁碟、記憶體還是主機造成，寫到 `freezes.log`
+  - **卡頓期間誰最耗 CPU**：每秒記錄每條執行緒用掉的 CPU 時間；每次卡頓或程序凍結結束時，列出這段期間最耗 CPU 的執行緒（含插件 jar 檔名）與「JVM 內部（GC、JIT 等）」，`/tickb status` 顯示累計前三名。用來找出是什麼把主機給的 CPU 額度用光
 - **熱點區塊介面**：
   - 箱子介面列出區塊的實體、方塊實體、漏斗數量，顯示數量最多的 5 種生物（以玩家的遊戲語言顯示）
   - 分類（實體／方塊實體／漏斗）與排序（多到少／少到多／離我最近）分開切換
@@ -137,6 +138,7 @@
 | `spike-detector.reports.max-files` / `max-total-mb` | 報告數量與總容量上限 |
 | `spike-detector.stack-capture.threshold-ms` | tick 跑超過幾毫秒就擷取主執行緒堆疊 |
 | `spike-detector.freeze-diagnosis.enabled` | 程序凍結診斷開關（`jfr: false` 可以只用系統數據） |
+| `spike-detector.thread-cpu.top` | 卡頓期間列出最耗 CPU 的前幾條執行緒 |
 | `load-shedding.levels` | 降載等級：MSPT 門檻與要降到的模擬距離／視距 |
 | `ai-pause.crowd.pause-at` / `resume-at` | 暫停與恢復的同類生物數量 |
 | `ai-pause.wake.villager-work-windows` | 村民補貨的喚醒時段（遊戲時間） |
@@ -167,6 +169,7 @@ Compatible with Paper 1.21.11 and 26.1.x–26.3 (Paper forks such as Purpur shou
   - Every spike is logged to `spikes.log`, which is size-limited and rotated automatically.
   - **Stack capture during spikes**: when a tick runs longer than 1 second, a background thread reads what the main thread is doing and writes it to `stacks.log`, with a one-line "likely source" (including the plugin's jar name) in the console. This works even when the main thread is stuck in a system call such as a disk write, which spark's sampling cannot see.
   - **Process freeze diagnosis**: if the background thread also stops during a spike, the whole Java process was frozen (not just slow code). TickBlade then checks JVM safepoints (using Java's built-in JFR, no startup flags needed), container CPU throttling, system pressure (PSI), and steal time, and decides whether the JVM, CPU throttling, disk, memory, or the host caused it. Results go to `freezes.log`.
+  - **Who used the CPU during a spike**: records each thread's CPU time every second. When a spike or freeze ends, it lists the threads that used the most CPU in that window (with the plugin's jar name) plus "JVM internal (GC, JIT, etc.)", and `/tickb status` shows the top three overall. This finds what is using up the CPU quota your host gives you.
 
 - **Hotspot Chunk GUI**:
   - A chest GUI lists entity, block entity, and hopper counts per chunk, plus the 5 most common mob types (shown in each player's client language).
@@ -296,6 +299,7 @@ Base command: `/tickblade` (alias: `/tickb`).
 | `spike-detector.reports.max-files` / `max-total-mb` | Maximum number and total size of saved reports |
 | `spike-detector.stack-capture.threshold-ms` | Capture the main thread's stack once a tick runs longer than this (ms) |
 | `spike-detector.freeze-diagnosis.enabled` | Turn process freeze diagnosis on or off (`jfr: false` uses system statistics only) |
+| `spike-detector.thread-cpu.top` | How many of the most CPU-hungry threads to list for each spike |
 | `load-shedding.levels` | Load-shedding tiers: MSPT threshold and the simulation/view distance to drop to |
 | `ai-pause.crowd.pause-at` / `resume-at` | Same-type mob count to pause at and to resume at |
 | `ai-pause.wake.villager-work-windows` | In-game time windows when villagers wake up to restock |

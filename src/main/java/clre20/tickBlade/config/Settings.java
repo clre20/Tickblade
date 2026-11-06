@@ -72,6 +72,8 @@ public final class Settings {
     public final boolean freezeJfr;
     public final int freezeSafepointMs;
     public final long freezeLogMaxBytes;
+    public final boolean threadCpuEnabled;
+    public final int threadCpuTop;
     public final int hotspotCacheSeconds;
     public final int hotspotChunksPerTick;
     public final int hotspotMinOpLevel;
@@ -155,6 +157,8 @@ public final class Settings {
         freezeThresholdMs = clamp(c.getInt("spike-detector.freeze-diagnosis.threshold-ms", 1000), 200, 60000);
         freezeJfr = c.getBoolean("spike-detector.freeze-diagnosis.jfr", true);
         freezeSafepointMs = clamp(c.getInt("spike-detector.freeze-diagnosis.safepoint-threshold-ms", 100), 10, 60000);
+        threadCpuEnabled = c.getBoolean("spike-detector.thread-cpu.enabled", true);
+        threadCpuTop = clamp(c.getInt("spike-detector.thread-cpu.top", 6), 1, 20);
         freezeLogMaxBytes = clamp(c.getLong("spike-detector.freeze-diagnosis.log-max-size-kb", 2048), 16, 102_400) * 1024L;
         hotspotCacheSeconds = clamp(c.getInt("hotspots.cache-seconds", 30), 0, 3600);
         hotspotChunksPerTick = clamp(c.getInt("hotspots.chunks-per-tick", 150), 10, 5000);
