@@ -62,8 +62,22 @@ status:
   source-on: "&a可用"
   source-off: "&8無"
   jfr-off: "&8未啟用（{reason}）"
+  cpu-top: "&7卡頓期間累計最耗 CPU：&f{list}"
+  cpu-top-none: "&7卡頓期間累計最耗 CPU：尚無資料"
+  cpu-top-off: "&7卡頓期間 CPU 用量：&8已關閉"
+  cpu-top-unsupported: "&7卡頓期間 CPU 用量：&8這個 Java 不支援執行緒 CPU 時間"
+  cpu-top-item: "{name} {seconds} 秒"
   breakdown-item: "{name} {count}"
   breakdown-separator: "、"
+
+# 卡頓期間各執行緒的 CPU 用量（寫進 stacks.log 與 freezes.log）
+cpu:
+  line: "最耗 CPU（{window} ms 內程序共用 {total} ms CPU，平均約 {cores} 核）：{list}"
+  item: "{name}{where} {ms} ms"
+  where: "［{where}］"
+  separator: "、"
+  jvm-internal: "JVM 內部（GC、JIT 等）"
+  tick-entry: "{time}  上面這次卡頓結束（約 {ms} ms）\n  {usage}"
 
 # 程序凍結診斷（reports/freezes.log 與後台）
 freeze:

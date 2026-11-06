@@ -28,7 +28,7 @@ public final class FreezeDiagnosis {
 
     public enum Verdict { SAFEPOINT, THROTTLE, MEMORY, IO, CPU, STEAL, HOST, UNKNOWN }
 
-    private record Pending(long startMs, long endMs, long ms, boolean inTick,
+    private record Pending(long startMs, long endMs, long ms, boolean inTick, String usage,
                            SysSampler.Sample before, SysSampler.Sample after) {
     }
 
@@ -109,10 +109,10 @@ public final class FreezeDiagnosis {
         lastSampleNs = nowNs;
     }
 
-    void onFreeze(long startMs, long endMs, long ms, boolean inTick) {
+    void onFreeze(long startMs, long endMs, long ms, boolean inTick, String usage) {
         if (sampler == null) return;
         SysSampler.Sample after = sampler.sample();
-        if (pending.size() < MAX_PENDING) pending.addLast(new Pending(startMs, endMs, ms, inTick, last, after));
+        if (pending.size() < MAX_PENDING) pending.addLast(new Pending(startMs, endMs, ms, inTick, usage, last, after));
         last = after;
         lastSampleNs = System.nanoTime();
     }
@@ -191,7 +191,8 @@ public final class FreezeDiagnosis {
                 "intick", m.raw(p.inTick() ? "freeze.yes" : "freeze.no"),
                 "verdict", verdict);
         synchronized (lines) {
-            if (lines.size() < MAX_LINES) lines.add(Messages.stripColor(line) + "\n  " + Messages.stripColor(details) + "\n");
+            if (lines.size() < MAX_LINES) lines.add(Messages.stripColor(line) + "\n  " + Messages.stripColor(details) + "\n"
+                    + (p.usage() == null ? "" : "  " + Messages.stripColor(p.usage()) + "\n"));
         }
     }
 
