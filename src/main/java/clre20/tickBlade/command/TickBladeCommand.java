@@ -206,7 +206,7 @@ public final class TickBladeCommand implements TabExecutor {
                     long n = d.count(v);
                     if (n == 0) continue;
                     if (b.length() > 0) b.append(m.raw("status.breakdown-separator"));
-                    b.append(m.raw("status.breakdown-item", "name", m.raw("freeze.short." + v.name().toLowerCase()), "count", n));
+                    b.append(m.raw("status.breakdown-item", "name", m.raw("freeze.short." + v.name().toLowerCase().replace('_', '-')), "count", n));
                 }
                 m.sendPlain(sender, "status.freezes", "threshold", s.freezeThresholdMs, "count", d.count(),
                         "seconds", String.format("%.1f", d.totalMs() / 1000.0), "breakdown", b.toString());

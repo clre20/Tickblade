@@ -43,6 +43,9 @@ public final class StackCapture implements Listener {
     private final FreezeDiagnosis.Shared shared = new FreezeDiagnosis.Shared();
     private volatile FreezeDiagnosis diagnosis;
     private long lastCheckEnd;             // 只在 watcher 執行緒存取
+    private final java.lang.management.ThreadMXBean threadBean = java.lang.management.ManagementFactory.getThreadMXBean();
+    private final long mainThreadId;
+    private long prevMainCpu = -1, prevMainUser = -1, prevSelfCpu = -1, prevSelfUser = -1; // 上次檢查結束時的值（奈秒）
 
     private volatile long tickStart;      // 0 = 目前不在 tick 中
     private volatile long tickNumber;
@@ -62,6 +65,7 @@ public final class StackCapture implements Listener {
     public StackCapture(TickBlade plugin) {
         this.plugin = plugin;
         this.mainThread = Thread.currentThread(); // 在 onEnable（主執行緒）建立
+        this.mainThreadId = mainThread.threadId();
         this.diagnosis = new FreezeDiagnosis(plugin, shared);
     }
 
@@ -132,7 +136,7 @@ public final class StackCapture implements Listener {
                         // 在 tick 中的凍結會在 tick 結束時另外統計，這裡不重複累計
                         String usage = s.threadCpuEnabled
                                 ? formatUsage(cpu.report(end - late, s.threadCpuTop, !inTick)) : null;
-                        diagnosis.onFreeze(end - late, end, late, inTick, usage);
+                        diagnosis.onFreeze(end - late, end, late, inTick, usage, threadTimes());
                     }
                 }
                 diagnosis.sampleIfDue(now);
@@ -149,7 +153,37 @@ public final class StackCapture implements Listener {
         } catch (Throwable t) {
             plugin.getLogger().warning("Stack capture failed: " + t);
         } finally {
+            rememberThreadTimes();
             lastCheckEnd = System.nanoTime();
+        }
+    }
+
+    /** 每次檢查結束時記下主執行緒與自己的 CPU 時間（4 次輕量查詢），下次發現凍結時相減 */
+    private void rememberThreadTimes() {
+        try {
+            prevMainCpu = threadBean.getThreadCpuTime(mainThreadId);
+            prevMainUser = threadBean.getThreadUserTime(mainThreadId);
+            prevSelfCpu = threadBean.getCurrentThreadCpuTime();
+            prevSelfUser = threadBean.getCurrentThreadUserTime();
+        } catch (RuntimeException e) {
+            prevMainCpu = prevMainUser = prevSelfCpu = prevSelfUser = -1;
+        }
+    }
+
+    private static long msBetween(long before, long after) {
+        return before < 0 || after < 0 || after < before ? -1 : (after - before) / 1_000_000L;
+    }
+
+    /** 從上次檢查結束到現在（也就是凍結那一段），主執行緒與自己各被記了多少 CPU 時間 */
+    private FreezeDiagnosis.ThreadTimes threadTimes() {
+        try {
+            return new FreezeDiagnosis.ThreadTimes(
+                    msBetween(prevMainCpu, threadBean.getThreadCpuTime(mainThreadId)),
+                    msBetween(prevMainUser, threadBean.getThreadUserTime(mainThreadId)),
+                    msBetween(prevSelfCpu, threadBean.getCurrentThreadCpuTime()),
+                    msBetween(prevSelfUser, threadBean.getCurrentThreadUserTime()));
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 

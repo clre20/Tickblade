@@ -83,6 +83,7 @@ cpu:
 freeze:
   log-line: "{time}  程序凍結 {ms} ms  當時在 tick 中：{intick}  判斷：{verdict}"
   details: "JVM 安全點：{safepoint}｜CPU 限流 {throttle} ms｜等 CPU {cpu} ms｜磁碟停滯 {io} ms｜記憶體停滯 {memory} ms｜steal {steal}%（PSI 來源：{psi}）"
+  sched: "主執行緒：被記 CPU {maincpu} ms（其中核心態 {mainsys}）、排隊等 CPU {mainwait} ms｜背景執行緒：被記 CPU {selfcpu} ms（核心態 {selfsys}）、排隊 {selfwait} ms｜整個程序：使用者態 {procuser} ms、核心態 {procsys} ms｜缺頁：次要 {minflt}、主要 {majflt}｜限流週期 {thrperiods}/{periods}｜CPU 額度設定 {cpumax}｜NUMA {numa}、記憶體整理 {compact}、直接回收 {reclaim}"
   safepoint-detail: "{ms} ms（{op}，等所有執行緒停下 {sync} ms）"
   none: "無"
   na: "-"
@@ -97,6 +98,8 @@ freeze:
     steal: "主機 CPU 被其他用戶佔用（steal）"
     host: "JVM 與容器都沒有異常，整個程序被主機暫停"
     unknown: "無法判斷（JFR 未啟用）"
+    stall-user: "主執行緒被記了 CPU 時間卻沒有前進（不是被限流；通常是主機暫停了虛擬 CPU）"
+    stall-kernel: "主執行緒卡在系統核心裡（被記了核心態 CPU 時間卻沒有前進）"
   short:
     safepoint: "JVM 暫停"
     throttle: "限流"
@@ -106,6 +109,8 @@ freeze:
     steal: "steal"
     host: "主機"
     unknown: "無法判斷"
+    stall-user: "佔 CPU 沒前進"
+    stall-kernel: "卡在核心"
 
 spike:
   profile-started: "&e卡頓次數達到門檻，已開始錄製 spark 報告（{seconds} 秒，只記錄超過 {over} ms 的 tick）。"
@@ -245,6 +250,7 @@ console:
   spike: "卡頓：單一 tick {ms} ms"
   stack-captured: "主執行緒已卡 {ms} ms，正在執行：{where}（完整堆疊寫入 reports/stacks.log）"
   freeze: "整個程序被凍住 {ms} ms，判斷：{verdict}（詳細寫入 reports/freezes.log）"
+  cpu-max: "容器 CPU 額度設定（額度 週期，微秒）：{value}"
   jfr-started: "JFR 安全點記錄已啟動（超過 {ms} ms 的安全點）"
   jfr-failed: "無法啟動 JFR，程序凍結只用系統數據判斷：{reason}"
   profile-started: "已開始錄製 spark 報告（{seconds} 秒）"
