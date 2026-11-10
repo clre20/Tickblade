@@ -16,7 +16,7 @@
   - 報告直接存成檔案放在 `plugins/TickBlade/reports/`，不會有網址過期的問題；有檔案數與總容量上限
   - 每次卡頓記錄到 `spikes.log`（有大小上限，自動輪替）
   - **卡頓當下擷取主執行緒堆疊**：tick 跑超過 1 秒時，背景執行緒直接讀主執行緒正在做什麼，寫到 `stacks.log`，後台顯示一行「可能來源」（含插件的 jar 檔名）。卡在寫硬碟等系統呼叫時 spark 取樣抓不到，這個抓得到
-  - **程序凍結診斷**：如果卡頓時連背景執行緒也停住，代表整個 Java 程序被凍住（不是某段程式太慢）。這時會對照 JVM 安全點（用 Java 內建的 JFR，不需要改啟動參數）、容器 CPU 限流、系統壓力（PSI）與 steal，判斷是 JVM 內部、CPU 限流、磁碟、記憶體還是主機造成，寫到 `freezes.log`
+  - **程序凍結診斷**：如果卡頓時連背景執行緒也停住，代表整個 Java 程序被凍住（不是某段程式太慢）。這時會對照 JVM 安全點（用 Java 內建的 JFR，不需要改啟動參數）、容器 CPU 限流、系統壓力（PSI）與 steal，判斷是 JVM 內部、CPU 限流、磁碟、記憶體還是主機造成，寫到 `freezes.log`。每筆還會記錄凍結期間主執行緒被記了多少 CPU 時間、排隊等了多久、缺頁次數與容器的 CPU 額度設定，用來分辨「被限流（沒有 CPU 時間）」和「佔著 CPU 卻沒有前進（主機暫停虛擬 CPU）」
   - **卡頓期間誰最耗 CPU**：每秒記錄每條執行緒用掉的 CPU 時間；每次卡頓或程序凍結結束時，列出這段期間最耗 CPU 的執行緒（含插件 jar 檔名）與「JVM 內部（GC、JIT 等）」，`/tickb status` 顯示累計前三名。用來找出是什麼把主機給的 CPU 額度用光
 - **熱點區塊介面**：
   - 箱子介面列出區塊的實體、方塊實體、漏斗數量，顯示數量最多的 5 種生物（以玩家的遊戲語言顯示）
@@ -168,7 +168,7 @@ Compatible with Paper 1.21.11 and 26.1.x–26.3 (Paper forks such as Purpur shou
   - Reports are saved as `.sparkprofile` files in `plugins/TickBlade/reports/`, so there are no expiring links. File count and total size are capped.
   - Every spike is logged to `spikes.log`, which is size-limited and rotated automatically.
   - **Stack capture during spikes**: when a tick runs longer than 1 second, a background thread reads what the main thread is doing and writes it to `stacks.log`, with a one-line "likely source" (including the plugin's jar name) in the console. This works even when the main thread is stuck in a system call such as a disk write, which spark's sampling cannot see.
-  - **Process freeze diagnosis**: if the background thread also stops during a spike, the whole Java process was frozen (not just slow code). TickBlade then checks JVM safepoints (using Java's built-in JFR, no startup flags needed), container CPU throttling, system pressure (PSI), and steal time, and decides whether the JVM, CPU throttling, disk, memory, or the host caused it. Results go to `freezes.log`.
+  - **Process freeze diagnosis**: if the background thread also stops during a spike, the whole Java process was frozen (not just slow code). TickBlade then checks JVM safepoints (using Java's built-in JFR, no startup flags needed), container CPU throttling, system pressure (PSI), and steal time, and decides whether the JVM, CPU throttling, disk, memory, or the host caused it. Results go to `freezes.log`. Each entry also records how much CPU time the main thread was charged during the freeze, how long it waited in the run queue, page faults, and the container's CPU quota setting. This separates "throttled (no CPU time charged)" from "charged CPU time but made no progress (the host paused the virtual CPU)".
   - **Who used the CPU during a spike**: records each thread's CPU time every second. When a spike or freeze ends, it lists the threads that used the most CPU in that window (with the plugin's jar name) plus "JVM internal (GC, JIT, etc.)", and `/tickb status` shows the top three overall. This finds what is using up the CPU quota your host gives you.
 
 - **Hotspot Chunk GUI**:
