@@ -106,7 +106,9 @@ public final class TickBlade extends JavaPlugin implements Listener {
         }), 1200L, 1200L);
 
         getLogger().info(messages.console("console.enabled", "version", getPluginMeta().getVersion()));
-        if (settings.updateOnStartup) {
+        if (getServer().getPluginManager().isPluginEnabled("HttpHub") && clre20.httpHub.api.HttpHubAPI.isAvailable()) {
+            clre20.httpHub.api.HttpHubAPI.registerUpdateCheck(this, "clre20/TickBlade", getPluginMeta().getVersion(), "tickblade.version", null);
+        } else if (settings.updateOnStartup) {
             updateChecker.check().thenAccept(this::logUpdate);
         }
     }

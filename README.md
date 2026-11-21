@@ -4,6 +4,9 @@
 
 支援 Paper 1.21.11、26.1.x～26.3（Purpur 等 Paper 分支理論上相容；不支援 Spigot、Folia）。1.21.11 需要 Java 21 以上，26.x 伺服器需要 Java 25。
 
+
+> **版本檢查提示**：若伺服器有安裝 [HttpHub](https://github.com/clre20/HttpHub)，本插件自動由 HttpHub 集中處理版本檢查與管理員登入通知，避免各插件自開連線與背景執行緒。
+
 ## 功能
 
 - **生物消失判斷**：
@@ -150,6 +153,9 @@
 ---
 
 # TickBlade (English)
+
+
+> **Update Checker**: When [HttpHub](https://github.com/clre20/HttpHub) is installed, update checks and operator login alerts are handled centrally by HttpHub via virtual threads, preventing redundant background connections.
 
 Identify sources of server lag, fix mobs that pile up because they never despawn, automatically shed load when MSPT gets too high, and pause the AI of crowded or trapped mobs, all while keeping vanilla mechanics such as villager trading, restocking, and sheep wool regrowth.
 

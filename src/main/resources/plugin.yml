@@ -65,3 +65,5 @@ permissions:
   tickblade.notify:
     description: 收到卡頓錄製、降載等級變化的通知
     default: op
+
+softdepend: [ HttpHub ]
