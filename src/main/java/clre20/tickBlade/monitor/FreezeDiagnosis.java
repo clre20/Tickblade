@@ -59,12 +59,15 @@ public final class FreezeDiagnosis {
         final AtomicLong count = new AtomicLong();
         final AtomicLong totalMs = new AtomicLong();
         final AtomicLongArray byVerdict = new AtomicLongArray(Verdict.values().length);
+        /** 實際跑 tick 的執行緒的 schedstat（由 StackCapture 在 tick 執行緒上設定）；null = 沿用 "Server thread" */
+        volatile java.nio.file.Path tickSched;
     }
 
     private final List<String> lines;
     private final AtomicLong count;
     private final AtomicLong totalMs;
     private final AtomicLongArray byVerdict;
+    private final Shared shared;
 
     FreezeDiagnosis(TickBlade plugin, Shared shared) {
         this.plugin = plugin;
@@ -72,6 +75,7 @@ public final class FreezeDiagnosis {
         this.count = shared.count;
         this.totalMs = shared.totalMs;
         this.byVerdict = shared.byVerdict;
+        this.shared = shared;
     }
 
     /** 背景執行緒：建立取樣器、啟動 JFR */
@@ -81,6 +85,7 @@ public final class FreezeDiagnosis {
         hasPsi = sampler.hasPsi();
         hasSteal = sampler.hasSteal();
         sampler.locateMainThread();
+        sampler.tickThreadSource(shared);
         last = sampler.sample();
         lastExtra = sampler.extra();
         lastSampleNs = System.nanoTime();

@@ -2,7 +2,7 @@
 
 找出伺服器卡頓的來源、修正越積越多的生物、MSPT 過高時自動降載，並暫停擠在一起或被關住的生物 AI，同時保留交易、補貨與剪羊毛等原版機制。
 
-支援 Paper 1.21.11、26.1.x～26.3（Purpur 等 Paper 分支理論上相容；不支援 Spigot、Folia）。1.21.11 需要 Java 21 以上，26.x 伺服器需要 Java 25。
+支援 Paper 1.21.11、26.1.x～26.3（Purpur 等 Paper 分支理論上相容；Foliage 的單執行緒模式可用，堆疊擷取會自動改盯實際跑 tick 的執行緒；不支援 Spigot、Folia）。1.21.11 需要 Java 21 以上，26.x 伺服器需要 Java 25。
 
 
 > **版本檢查提示**：若伺服器有安裝 [HttpHub](https://github.com/clre20/HttpHub)，本插件自動由 HttpHub 集中處理版本檢查與管理員登入通知，避免各插件自開連線與背景執行緒。

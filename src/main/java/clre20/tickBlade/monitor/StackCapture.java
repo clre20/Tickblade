@@ -38,13 +38,15 @@ public final class StackCapture implements Listener {
             "co.aikar.", "net.kyori.", "com.google.", "org.apache.", "org.slf4j.", "org.jline."};
 
     private final TickBlade plugin;
-    private final Thread mainThread;
+    /** 跑 tick 的執行緒。Paper 是 "Server thread"；Folia 系核心（例如 Foliage）是區域排程執行緒，在第一次 tick 時更新 */
+    private volatile Thread mainThread;
     private ScheduledExecutorService watcher;
     private final FreezeDiagnosis.Shared shared = new FreezeDiagnosis.Shared();
     private volatile FreezeDiagnosis diagnosis;
     private long lastCheckEnd;             // 只在 watcher 執行緒存取
     private final java.lang.management.ThreadMXBean threadBean = java.lang.management.ManagementFactory.getThreadMXBean();
-    private final long mainThreadId;
+    private volatile long mainThreadId;
+    private volatile boolean mainThreadChanged; // watcher 看到後重設累計值
     private long prevMainCpu = -1, prevMainUser = -1, prevSelfCpu = -1, prevSelfUser = -1; // 上次檢查結束時的值（奈秒）
 
     private volatile long tickStart;      // 0 = 目前不在 tick 中
@@ -73,6 +75,8 @@ public final class StackCapture implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onTickStart(ServerTickStartEvent e) {
+        Thread t = Thread.currentThread();
+        if (t != mainThread) adoptTickThread(t);
         tickNumber = e.getTickNumber();
         tickStart = System.nanoTime();
     }
@@ -80,6 +84,24 @@ public final class StackCapture implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onTickEnd(ServerTickEndEvent e) {
         tickStart = 0;
+    }
+
+    /**
+     * tick 不在建立時的執行緒上跑（Foliage 等核心）：改盯實際跑 tick 的執行緒。
+     * 只在執行緒改變時執行一次；讀取 /proc/thread-self 是核心的虛擬檔案，不碰硬碟。
+     */
+    private void adoptTickThread(Thread t) {
+        mainThread = t;
+        mainThreadId = t.threadId();
+        mainThreadChanged = true;
+        Path sched = null;
+        try {
+            Path link = Files.readSymbolicLink(Path.of("/proc/thread-self")); // 例如 "57/task/123"
+            Path p = Path.of("/proc").resolve(link).resolve("schedstat");
+            if (Files.isReadable(p)) sched = p;
+        } catch (IOException | RuntimeException ignored) {
+        }
+        shared.tickSched = sched;
     }
 
     // ---------- 背景執行緒 ----------
@@ -160,6 +182,10 @@ public final class StackCapture implements Listener {
 
     /** 每次檢查結束時記下主執行緒與自己的 CPU 時間（4 次輕量查詢），下次發現凍結時相減 */
     private void rememberThreadTimes() {
+        if (mainThreadChanged) {
+            mainThreadChanged = false;
+            prevMainCpu = prevMainUser = -1; // 換了執行緒，舊的累計值不能相減
+        }
         try {
             prevMainCpu = threadBean.getThreadCpuTime(mainThreadId);
             prevMainUser = threadBean.getThreadUserTime(mainThreadId);

@@ -31,6 +31,7 @@ final class SysSampler {
             Path.of("/sys/fs/cgroup/cpu/cpu.cfs_quota_us"), Path.of("/sys/fs/cgroup/cpu,cpuacct/cpu.cfs_quota_us")};
     private Path mainSched;   // /proc/self/task/<tid>/schedstat（主執行緒）
     private long clockTick = 100;
+    private FreezeDiagnosis.Shared tickSource;
 
     private static final Path CG2_CPU_STAT = Path.of("/sys/fs/cgroup/cpu.stat");
     private static final Path[] CG1_CPU_STAT = {
@@ -100,6 +101,17 @@ final class SysSampler {
         }
     }
 
+    /** Foliage 等核心的 tick 不在 "Server thread" 上跑；有設定時優先用實際的 tick 執行緒 */
+    void tickThreadSource(FreezeDiagnosis.Shared s) {
+        tickSource = s;
+    }
+
+    private Path currentMainSched() {
+        FreezeDiagnosis.Shared s = tickSource;
+        Path p = s == null ? null : s.tickSched;
+        return p != null ? p : mainSched;
+    }
+
     /** 容器的 CPU 額度設定，例如 "400000 100000"（額度 週期，微秒）；無法取得回傳 null */
     String cpuMax() {
         try {
@@ -142,7 +154,7 @@ final class SysSampler {
             periods = statValue(cpuStat, "nr_periods");
             thrPeriods = statValue(cpuStat, "nr_throttled");
         }
-        long[] main = sched(mainSched), self = sched(SELF_SCHED);
+        long[] main = sched(currentMainSched()), self = sched(SELF_SCHED);
         long numa = -1, compact = -1, reclaim = -1;
         try {
             long r = 0;
