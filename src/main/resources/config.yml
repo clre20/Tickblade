@@ -22,6 +22,11 @@ protection:
     - NPC
     - shopkeeper
     - MyPet
+  # 某些插件或資料包會替「所有」生物加標記，造成每隻都被當成其他插件的生物而不處理。
+  # 用 /tickblade inspect 看「其他插件或資料包管理的生物」後面的標記，把它加到下面就會忽略：
+  # tag:xxx → ignored-scoreboard-tags 填 xxx；pdc:命名空間:鍵 → ignored-pdc-namespaces 填命名空間
+  ignored-scoreboard-tags: []
+  ignored-pdc-namespaces: []
 
 # A. 生物消失判斷
 # 終界使者拿著方塊、怪物撿起物品穿戴後會變成「永遠不會消失」而越積越多

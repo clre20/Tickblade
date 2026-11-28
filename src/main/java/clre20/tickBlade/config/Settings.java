@@ -35,6 +35,8 @@ public final class Settings {
     public final boolean skipScoreboardTags;
     public final boolean skipForeignPdc;
     public final List<String> metadataKeys;
+    public final java.util.Set<String> ignoredScoreboardTags;
+    public final java.util.Set<String> ignoredPdcNamespaces;
 
     // A
     public final boolean despawnEnabled;
@@ -124,6 +126,10 @@ public final class Settings {
         skipScoreboardTags = c.getBoolean("protection.skip-scoreboard-tags", true);
         skipForeignPdc = c.getBoolean("protection.skip-foreign-pdc", true);
         metadataKeys = List.copyOf(c.getStringList("protection.metadata-keys"));
+        ignoredScoreboardTags = java.util.Set.copyOf(c.getStringList("protection.ignored-scoreboard-tags"));
+        java.util.Set<String> ns = new java.util.HashSet<>();
+        for (String n : c.getStringList("protection.ignored-pdc-namespaces")) ns.add(n.toLowerCase(java.util.Locale.ROOT));
+        ignoredPdcNamespaces = java.util.Set.copyOf(ns);
 
         despawnEnabled = c.getBoolean("despawn-fix.enabled", true);
         despawnWorlds = lowerSet(c.getStringList("despawn-fix.worlds"));

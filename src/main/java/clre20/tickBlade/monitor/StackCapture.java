@@ -216,6 +216,8 @@ public final class StackCapture implements Listener {
     private void captureIfSlow(Settings s, long now) {
         long start = tickStart;
         if (start == 0) return;
+        // 關服時 tick 已經停了（Foliage 的 tick 執行緒直接結束），不是卡頓
+        if (plugin.getServer().isStopping()) return;
         long ms = (now - start) / 1_000_000L;
         if (ms < s.stackThresholdMs) return;
         if (plugin.uptimeSeconds() < s.startupGraceSeconds) return;

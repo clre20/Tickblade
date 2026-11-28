@@ -170,6 +170,7 @@ inspect:
     targeting-player: "正在鎖定玩家"
     keyword: "名字含「{keyword}」"
     foreign: "其他插件或資料包管理的生物"
+    foreign-by: "其他插件或資料包管理的生物（標記 {by}）"
     woken: "暫時喚醒中，還剩 {seconds} 秒"
     love: "在繁殖狀態"
     sheared: "被剪過毛，等吃草長回羊毛"

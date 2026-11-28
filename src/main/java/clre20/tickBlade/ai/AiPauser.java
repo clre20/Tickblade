@@ -352,6 +352,11 @@ public final class AiPauser implements Listener {
         String state = reason != null && !mob.isAware() ? "paused" : !mob.isAware() ? "other" : "awake";
         if (state.equals("other")) return new Diagnosis(state, null, crowd, confined, "normal", null);
         Why inel = ineligible(mob, s);
+        if (inel != null && "foreign".equals(inel.key())) {
+            // inspect 時現查是哪個標記，方便設定 protection.ignored-*
+            String by = Protection.foreignMarker(mob, s);
+            if (by != null) inel = new Why("foreign-by", "by", by);
+        }
         if (inel != null) return new Diagnosis(state, reason, crowd, confined, "ineligible", inel);
         Nearby live = new LiveNearby(mob.getWorld());
         Why wake = wakeReason(mob, s, live, false); // inspect 不改變狀態
