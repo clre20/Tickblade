@@ -97,6 +97,7 @@ public final class Settings {
     public final double crowdRadius;
     public final int crowdPauseAt;
     public final int crowdResumeAt;
+    public final boolean crowdIncludeUnemployed;
     public final boolean aiConfined;
     public final double hostileTargetRadius;
     public final double golemFarmRadius;
@@ -182,6 +183,7 @@ public final class Settings {
         int pauseAt = clamp(c.getInt("ai-pause.crowd.pause-at", 5), 2, 1000);
         crowdPauseAt = pauseAt;
         crowdResumeAt = clamp(c.getInt("ai-pause.crowd.resume-at", 3), 1, pauseAt - 1);
+        crowdIncludeUnemployed = c.getBoolean("ai-pause.crowd.include-unemployed-villagers", true);
         aiConfined = c.getBoolean("ai-pause.confined", true);
         hostileTargetRadius = clamp(c.getDouble("ai-pause.hostile-target-radius", 16), 0, 64);
         golemFarmRadius = clamp(c.getDouble("ai-pause.golem-farm-radius", 10), 0, 32);

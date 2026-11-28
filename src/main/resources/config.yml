@@ -163,6 +163,8 @@ ai-pause:
     pause-at: 5
     # 降到這個數量（含）以下才恢復
     resume-at: 3
+    # 擠在一起的無業村民（繁殖場等）也照擁擠規則暫停；false = 無業村民只要能走動就一律不暫停
+    include-unemployed-villagers: true
   # 前後左右都走不過去，或坐在船、礦車上時暫停
   confined: true
   # 被困住的敵對生物（殭屍、骷髏、史萊姆等）：半徑幾格內有可攻擊的目標

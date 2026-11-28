@@ -172,6 +172,7 @@ public final class AiPauser implements Listener {
         Why inel = ineligible(mob, s);
         Why wake = inel == null ? wakeReason(mob, s, snap, true) : null;
         int crowd = snap.countSameType(i, s.crowdRadius);
+        if (crowdedUnemployed(wake, crowd, paused, s)) wake = null;
 
         if (!paused) {
             if (inel != null || wake != null) return;
@@ -202,6 +203,15 @@ public final class AiPauser implements Listener {
             return;
         }
         resume(mob, pdc);
+    }
+
+    /**
+     * 擠在一起的無業村民（例如繁殖場）照擁擠規則暫停：擠成一團也走不到工作站，醒著只會互相推擠。
+     * 已暫停的要等擁擠降到恢復門檻以下才因「沒有職業」喚醒，避免在門檻附近反覆切換。
+     */
+    private static boolean crowdedUnemployed(Why wake, int crowd, boolean paused, Settings s) {
+        if (wake == null || !s.crowdIncludeUnemployed || !"unemployed".equals(wake.key())) return false;
+        return paused ? crowd > s.crowdResumeAt : crowd >= s.crowdPauseAt;
     }
 
     private void countReason(byte reason, PersistentDataContainer pdc) {
@@ -345,6 +355,7 @@ public final class AiPauser implements Listener {
         if (inel != null) return new Diagnosis(state, reason, crowd, confined, "ineligible", inel);
         Nearby live = new LiveNearby(mob.getWorld());
         Why wake = wakeReason(mob, s, live, false); // inspect 不改變狀態
+        if (crowdedUnemployed(wake, crowd, state.equals("paused"), s)) wake = null;
         if (wake != null) return new Diagnosis(state, reason, crowd, confined, "wake", wake);
         if (crowd >= s.crowdPauseAt) return new Diagnosis(state, reason, crowd, confined, "pause-crowd", null);
         if (state.equals("paused") && crowd > s.crowdResumeAt) {
