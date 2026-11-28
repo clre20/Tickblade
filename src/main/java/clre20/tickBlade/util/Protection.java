@@ -11,6 +11,9 @@ public final class Protection {
 
     public static final String NAMESPACE = "tickblade";
 
+    /** 只做紀錄、不管理生物的插件命名空間（CoreProtect 替每隻生成的生物寫 coreprotect:spawn 追蹤紀錄） */
+    private static final java.util.Set<String> LOGGING_NAMESPACES = java.util.Set.of("coreprotect");
+
     private Protection() {
     }
 
@@ -32,7 +35,7 @@ public final class Protection {
         if (s.skipForeignPdc) {
             for (NamespacedKey k : e.getPersistentDataContainer().getKeys()) {
                 String ns = k.getNamespace();
-                if (ns.equals(NAMESPACE) || s.ignoredPdcNamespaces.contains(ns)) continue;
+                if (ns.equals(NAMESPACE) || LOGGING_NAMESPACES.contains(ns) || s.ignoredPdcNamespaces.contains(ns)) continue;
                 return "pdc:" + k;
             }
         }
